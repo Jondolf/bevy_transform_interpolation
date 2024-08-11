@@ -1,0 +1,7 @@
+[package]
+name = "bevy_transform_interpolation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.14"
