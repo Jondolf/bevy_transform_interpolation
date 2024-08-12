@@ -181,7 +181,10 @@
 
 mod interpolation;
 
-use bevy::prelude::*;
+use bevy::{
+    ecs::{component::Tick, system::SystemChangeTick},
+    prelude::*,
+};
 pub use interpolation::*;
 
 /// Performs transform interpolation.
@@ -201,6 +204,20 @@ pub struct TransformInterpolationPlugin {
     pub global_scale_interpolation: bool,
 }
 
+impl TransformInterpolationPlugin {
+    /// Enables interpolation for translation, rotation, and scale for all entities with the [`Transform`] component.
+    ///
+    /// This can be overridden for individual entities by adding the [`NoTranslationInterpolation`], [`NoRotationInterpolation`],
+    /// and [`NoScaleInterpolation`] components.
+    pub const fn interpolate_all() -> Self {
+        Self {
+            global_translation_interpolation: true,
+            global_rotation_interpolation: true,
+            global_scale_interpolation: true,
+        }
+    }
+}
+
 impl Plugin for TransformInterpolationPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<(
@@ -213,6 +230,13 @@ impl Plugin for TransformInterpolationPlugin {
             RotationInterpolation,
             ScaleInterpolation,
         )>();
+        app.register_type::<(
+            NoTranslationInterpolation,
+            NoRotationInterpolation,
+            NoScaleInterpolation,
+        )>();
+
+        app.init_resource::<LastEasingTick>();
 
         app.configure_sets(
             PostUpdate,
@@ -222,6 +246,7 @@ impl Plugin for TransformInterpolationPlugin {
         app.add_systems(
             FixedFirst,
             (
+                reset_easing_states_on_transform_change,
                 (
                     reset_translation_interpolation,
                     reset_rotation_interpolation,
@@ -241,12 +266,19 @@ impl Plugin for TransformInterpolationPlugin {
                 update_translation_interpolation_end,
                 update_rotation_interpolation_end,
                 update_scale_interpolation_end,
-            ),
+            )
+                .chain(),
         );
 
         app.add_systems(
             PostUpdate,
-            (ease_translation, ease_rotation, ease_scale).in_set(TransformEasingSet),
+            (
+                reset_easing_states_on_transform_change,
+                (ease_translation, ease_rotation, ease_scale),
+                update_last_easing_tick,
+            )
+                .chain()
+                .in_set(TransformEasingSet),
         );
 
         let interpolate_translation = self.global_translation_interpolation;
@@ -273,11 +305,13 @@ impl Plugin for TransformInterpolationPlugin {
     }
 }
 
-/// A system set for [transform interpolation]. Runs in [`PostUpdate`], before [`TransformSystem::TransformPropagate`].
-///
-/// [transform interpolation]: TransformInterpolation
+/// A system set for transform interpolation. Runs in [`PostUpdate`], before [`TransformSystem::TransformPropagate`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TransformEasingSet;
+
+/// A resource that stores the last tick when easing was performed.
+#[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut)]
+struct LastEasingTick(Tick);
 
 /// Stores the start and end states used for interpolating the translation of an entity.
 /// The change in translation is smoothed from `start` to `end` in between [`FixedUpdate`] runs.
@@ -316,6 +350,70 @@ pub struct ScaleEasingState {
     pub end: Option<Vec3>,
 }
 
+fn update_last_easing_tick(
+    mut last_easing_tick: ResMut<LastEasingTick>,
+    system_change_tick: SystemChangeTick,
+) {
+    *last_easing_tick = LastEasingTick(system_change_tick.this_run());
+}
+
+/// Resets the easing states to `None` when [`Transform`] is modified outside of the fixed timestep schedules
+/// or interpolation logic.
+#[allow(clippy::type_complexity)]
+fn reset_easing_states_on_transform_change(
+    mut query: Query<
+        (
+            Ref<Transform>,
+            Option<&mut TranslationEasingState>,
+            Option<&mut RotationEasingState>,
+            Option<&mut ScaleEasingState>,
+        ),
+        (
+            Changed<Transform>,
+            Or<(
+                With<TranslationEasingState>,
+                With<RotationEasingState>,
+                With<ScaleEasingState>,
+            )>,
+        ),
+    >,
+    last_easing_tick: Res<LastEasingTick>,
+    system_change_tick: SystemChangeTick,
+) {
+    let this_run = system_change_tick.this_run();
+
+    for (transform, translation_easing, rotation_easing, scale_easing) in &mut query {
+        let last_changed = transform.last_changed();
+        let is_user_change = last_changed.is_newer_than(last_easing_tick.0, this_run);
+
+        if !is_user_change {
+            continue;
+        }
+
+        if let Some(mut translation_easing) = translation_easing {
+            if translation_easing.end.is_some()
+                && transform.translation != translation_easing.end.unwrap()
+            {
+                translation_easing.start = None;
+                translation_easing.end = None;
+            }
+        }
+        if let Some(mut rotation_easing) = rotation_easing {
+            if rotation_easing.end.is_some() && transform.rotation != rotation_easing.end.unwrap() {
+                rotation_easing.start = None;
+                rotation_easing.end = None;
+            }
+        }
+        if let Some(mut scale_easing) = scale_easing {
+            if scale_easing.end.is_some() && transform.scale != scale_easing.end.unwrap() {
+                scale_easing.start = None;
+                scale_easing.end = None;
+            }
+        }
+    }
+}
+
+/// Resets the `start` and `end` states for translation interpolation.
 fn reset_translation_interpolation(
     mut query: Query<(&mut Transform, &mut TranslationEasingState)>,
 ) {
@@ -330,6 +428,7 @@ fn reset_translation_interpolation(
     }
 }
 
+/// Resets the `start` and `end` states for rotation interpolation.
 fn reset_rotation_interpolation(mut query: Query<(&mut Transform, &mut RotationEasingState)>) {
     for (mut transform, mut easing) in &mut query {
         // Make sure the previous easing is fully applied.
@@ -342,6 +441,7 @@ fn reset_rotation_interpolation(mut query: Query<(&mut Transform, &mut RotationE
     }
 }
 
+/// Resets the `start` and `end` states for scale interpolation.
 fn reset_scale_interpolation(mut query: Query<(&mut Transform, &mut ScaleEasingState)>) {
     for (mut transform, mut easing) in &mut query {
         // Make sure the previous easing is fully applied.
@@ -354,6 +454,7 @@ fn reset_scale_interpolation(mut query: Query<(&mut Transform, &mut ScaleEasingS
     }
 }
 
+/// Interpolates the translations of entities.
 fn ease_translation(
     mut query: Query<(&mut Transform, &TranslationEasingState)>,
     time: Res<Time<Fixed>>,
@@ -367,6 +468,7 @@ fn ease_translation(
     });
 }
 
+/// Interpolates the rotations of entities.
 fn ease_rotation(mut query: Query<(&mut Transform, &RotationEasingState)>, time: Res<Time<Fixed>>) {
     let overstep = time.overstep_fraction();
 
@@ -379,6 +481,7 @@ fn ease_rotation(mut query: Query<(&mut Transform, &RotationEasingState)>, time:
         });
 }
 
+/// Interpolates the scales of entities.
 fn ease_scale(mut query: Query<(&mut Transform, &ScaleEasingState)>, time: Res<Time<Fixed>>) {
     let overstep = time.overstep_fraction();
 
