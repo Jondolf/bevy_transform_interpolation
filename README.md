@@ -17,7 +17,6 @@ and interpolating `Transform` using them:
 
 ```rust
 use bevy::prelude::*;
-use bevy_transform_interpolation::*;
 
 #[derive(Component, Deref, DerefMut)]
 struct Position(Vec3);
