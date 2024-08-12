@@ -4,4 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.14"
+bevy = { version = "0.14", default-features = false }
+
+[dev-dependencies]
+bevy = { version = "0.14", default-features = false, features = [
+    "bevy_asset",
+    "bevy_render",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_winit",
+    "default_font",
+] }
