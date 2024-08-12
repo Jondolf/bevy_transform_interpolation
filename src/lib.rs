@@ -16,24 +16,27 @@
 //! and interpolating [`Transform`] using them:
 //!
 //! ```rust
-//! #[derive(Component)]
+//! use bevy::prelude::*;
+//! use bevy_transform_interpolation::*;
+//!
+//! #[derive(Component, Deref, DerefMut)]
 //! struct Position(Vec3);
 //!
-//! #[derive(Component)]
-//! struct PreviousPosition(Vec3);
+//! #[derive(Component, Deref, DerefMut)]
+//! struct OldPosition(Vec3);
 //!
 //! // Runs in `Update` or `PostUpdate`.
 //! fn interpolate_transforms(
-//!     query: Query<(&mut Transform, &Position, &OldPosition)>,
+//!     mut query: Query<(&mut Transform, &Position, &OldPosition)>,
 //!     fixed_time: Res<Time<Fixed>>
 //! ) {
 //!     // How much of a "partial timestep" has accumulated since the last fixed timestep run.
 //!     // Between `0.0` and `1.0`.
-//!     let overstep = fixed_time.overstep_fraction();
+//!     let overstep_fraction = fixed_time.overstep_fraction();
 //!
 //!     for (mut transform, position, old_position) in &mut query {
 //!         // Linearly interpolate the translation from the old position to the current one.
-//!         transform.translation = old_position.lerp(position, overstep_fraction);
+//!         transform.translation = old_position.lerp(position.0, overstep_fraction);
 //!     }
 //! }
 //! ```
@@ -60,7 +63,7 @@
 //!
 //! Next, add the [`TransformInterpolationPlugin`]:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use bevy::prelude::*;
 //! use bevy_transform_interpolation::*;
 //!
@@ -108,7 +111,7 @@
 //! You can also enable transform interpolation globally for *all* entities that have a [`Transform`]
 //! by configuring the [`TransformInterpolationPlugin`]:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use bevy::prelude::*;
 //! use bevy_transform_interpolation::*;
 //!
@@ -143,6 +146,8 @@
 //! For example, translation uses the following component for easing the movement:
 //!
 //! ```rust
+//! # use bevy::prelude::*;
+//! #
 //! pub struct TranslationEasingState {
 //!     pub start: Option<Vec3>,
 //!     pub end: Option<Vec3>,
