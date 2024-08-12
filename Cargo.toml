@@ -2,6 +2,14 @@
 name = "bevy_transform_interpolation"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
+description = "A general-purpose transform interpolation plugin for fixed timesteps for the Bevy game engine"
+documentation = "https://docs.rs/bevy_transform_interpolation"
+repository = "https://github.com/Jondolf/bevy_transform_interpolation"
+readme = "README.md"
+keywords = ["gamedev", "easing", "bevy"]
+categories = ["game-development"]
 
 [dependencies]
 bevy = { version = "0.14", default-features = false }
