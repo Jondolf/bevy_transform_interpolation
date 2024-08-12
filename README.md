@@ -2,7 +2,7 @@
 
 A general-purpose `Transform` interpolation plugin for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
 
-## What is this for?
+## What Is This For?
 
 A lot of gameplay logic and movement systems typically use a fixed timestep to produce consistent and stable behavior
 regardless of the frame rate. Notable examples include physics simulation and character movement.
