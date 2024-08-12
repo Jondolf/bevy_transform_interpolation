@@ -8,8 +8,17 @@ pub use interpolation::*;
 /// Performs transform interpolation.
 #[derive(Debug, Default)]
 pub struct TransformInterpolationPlugin {
+    /// If `true`, translation will be interpolated for all entities with the [`Transform`] component by default.
+    ///
+    /// This can be overridden for individual entities by adding the [`NoTranslationInterpolation`] component.
     pub global_translation_interpolation: bool,
+    /// If `true`, rotation will be interpolated for all entities with the [`Transform`] component by default.
+    ///
+    /// This can be overridden for individual entities by adding the [`NoRotationInterpolation`] component.
     pub global_rotation_interpolation: bool,
+    /// If `true`, scale will be interpolated for all entities with the [`Transform`] component by default.
+    ///
+    /// This can be overridden for individual entities by adding the [`NoScaleInterpolation`] component.
     pub global_scale_interpolation: bool,
 }
 
@@ -28,7 +37,7 @@ impl Plugin for TransformInterpolationPlugin {
 
         app.configure_sets(
             PostUpdate,
-            TransformInterpolationSet.before(TransformSystem::TransformPropagate),
+            TransformEasingSet.before(TransformSystem::TransformPropagate),
         );
 
         app.add_systems(
@@ -58,7 +67,7 @@ impl Plugin for TransformInterpolationPlugin {
 
         app.add_systems(
             PostUpdate,
-            (ease_translation, ease_rotation, ease_scale).in_set(TransformInterpolationSet),
+            (ease_translation, ease_rotation, ease_scale).in_set(TransformEasingSet),
         );
 
         let interpolate_translation = self.global_translation_interpolation;
@@ -89,7 +98,7 @@ impl Plugin for TransformInterpolationPlugin {
 ///
 /// [transform interpolation]: TransformInterpolation
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct TransformInterpolationSet;
+pub struct TransformEasingSet;
 
 /// Stores the start and end states used for interpolating the translation of an entity.
 /// The change in translation is smoothed from `start` to `end` in between [`FixedUpdate`] runs.
