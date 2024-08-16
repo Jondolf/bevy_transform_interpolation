@@ -173,6 +173,8 @@ supplying its own `TranslationExtrapolation` and `RotationExtrapolation` compone
 - Transform extrapolation is currently not supported as a built-in feature, as it typically requires a velocity
   for the prediction of the next state. However, it could be supported by external libraries such as physics engines
   in a similar way to `src/interpolation.rs`, and simply updating the `start` and `end` states differently.
+- Large angular velocities may cause visual artifacts, as the interpolation follows the shortest path.
+  A physics engine could handle this properly.
 
 ## License
 
