@@ -186,60 +186,29 @@ use bevy::{
 };
 pub use interpolation::*;
 
-/// Performs transform interpolation.
-#[derive(Debug, Default)]
-pub struct TransformInterpolationPlugin {
-    /// If `true`, translation will be interpolated for all entities with the [`Transform`] component by default.
-    ///
-    /// This can be overridden for individual entities by adding the [`NoTranslationInterpolation`] component.
-    pub global_translation_interpolation: bool,
-    /// If `true`, rotation will be interpolated for all entities with the [`Transform`] component by default.
-    ///
-    /// This can be overridden for individual entities by adding the [`NoRotationInterpolation`] component.
-    pub global_rotation_interpolation: bool,
-    /// If `true`, scale will be interpolated for all entities with the [`Transform`] component by default.
-    ///
-    /// This can be overridden for individual entities by adding the [`NoScaleInterpolation`] component.
-    pub global_scale_interpolation: bool,
-}
+/// Eases [`Transform`]s based on the start and end states of their interpolations.
+///
+/// Note: This does *not* enable automatic interpolation. Use [`TransformInterpolationPlugin`] for that.
+pub struct TransformEasingPlugin;
 
-impl TransformInterpolationPlugin {
-    /// Enables interpolation for translation, rotation, and scale for all entities with the [`Transform`] component.
-    ///
-    /// This can be overridden for individual entities by adding the [`NoTranslationInterpolation`], [`NoRotationInterpolation`],
-    /// and [`NoScaleInterpolation`] components.
-    pub const fn interpolate_all() -> Self {
-        Self {
-            global_translation_interpolation: true,
-            global_rotation_interpolation: true,
-            global_scale_interpolation: true,
-        }
-    }
-}
-
-impl Plugin for TransformInterpolationPlugin {
+impl Plugin for TransformEasingPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<(
             TranslationEasingState,
             RotationEasingState,
             ScaleEasingState,
         )>();
-        app.register_type::<(
-            TranslationInterpolation,
-            RotationInterpolation,
-            ScaleInterpolation,
-        )>();
-        app.register_type::<(
-            NoTranslationInterpolation,
-            NoRotationInterpolation,
-            NoScaleInterpolation,
-        )>();
 
         app.init_resource::<LastEasingTick>();
 
         app.configure_sets(
+            FixedFirst,
+            (TransformEasingSet::Reset, TransformEasingSet::UpdateStart).chain(),
+        );
+        app.configure_sets(FixedLast, TransformEasingSet::UpdateEnd);
+        app.configure_sets(
             PostUpdate,
-            TransformEasingSet.before(TransformSystem::TransformPropagate),
+            TransformEasingSet::Ease.before(TransformSystem::TransformPropagate),
         );
 
         app.add_systems(
@@ -251,22 +220,9 @@ impl Plugin for TransformInterpolationPlugin {
                     reset_rotation_interpolation,
                     reset_scale_interpolation,
                 ),
-                (
-                    update_translation_interpolation_start,
-                    update_rotation_interpolation_start,
-                    update_scale_interpolation_start,
-                ),
             )
-                .chain(),
-        );
-        app.add_systems(
-            FixedLast,
-            (
-                update_translation_interpolation_end,
-                update_rotation_interpolation_end,
-                update_scale_interpolation_end,
-            )
-                .chain(),
+                .chain()
+                .in_set(TransformEasingSet::Reset),
         );
 
         app.add_systems(
@@ -277,36 +233,19 @@ impl Plugin for TransformInterpolationPlugin {
                 update_last_easing_tick,
             )
                 .chain()
-                .in_set(TransformEasingSet),
-        );
-
-        let interpolate_translation = self.global_translation_interpolation;
-        let interpolate_rotation = self.global_rotation_interpolation;
-        let interpolate_scale = self.global_scale_interpolation;
-
-        app.observe(
-            move |trigger: Trigger<OnAdd, Transform>, mut commands: Commands| {
-                if interpolate_translation {
-                    commands
-                        .entity(trigger.entity())
-                        .insert(TranslationInterpolation);
-                }
-                if interpolate_rotation {
-                    commands
-                        .entity(trigger.entity())
-                        .insert(RotationInterpolation);
-                }
-                if interpolate_scale {
-                    commands.entity(trigger.entity()).insert(ScaleInterpolation);
-                }
-            },
+                .in_set(TransformEasingSet::Ease),
         );
     }
 }
 
-/// A system set for transform interpolation. Runs in [`PostUpdate`], before [`TransformSystem::TransformPropagate`].
+/// System sets for transform easing systems.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct TransformEasingSet;
+pub enum TransformEasingSet {
+    Reset,
+    UpdateStart,
+    UpdateEnd,
+    Ease,
+}
 
 /// A resource that stores the last tick when easing was performed.
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut)]
