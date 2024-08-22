@@ -160,8 +160,7 @@
 //! This way, `start` represents the "old" state, while `end` represents the "new" state after changes have been made to [`Transform`]
 //! in between [`FixedFirst`] and [`FixedLast`]. Rotation and scale are handled similarly.
 //!
-//! The easing is then performed in [`PostUpdate`], before Bevy's transform propagation systems. If the [`Transform`] is detected to have changed
-//! since the last easing run but *outside* of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
+//! The easing is then performed in [`RunFixedMainLoop`], right after the fixed time systems but before [`Update`].
 //!
 //! Note that the core easing logic and components are intentionally not tied to interpolation directly.
 //! A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
@@ -181,8 +180,10 @@
 mod interpolation;
 
 use bevy::{
+    app::RunFixedMainLoop,
     ecs::{component::Tick, system::SystemChangeTick},
     prelude::*,
+    time::run_fixed_main_schedule,
 };
 pub use interpolation::*;
 
@@ -238,8 +239,8 @@ impl Plugin for TransformInterpolationPlugin {
         app.init_resource::<LastEasingTick>();
 
         app.configure_sets(
-            PostUpdate,
-            TransformEasingSet.before(TransformSystem::TransformPropagate),
+            RunFixedMainLoop,
+            TransformEasingSet.after(run_fixed_main_schedule),
         );
 
         app.add_systems(
@@ -270,9 +271,8 @@ impl Plugin for TransformInterpolationPlugin {
         );
 
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             (
-                reset_easing_states_on_transform_change,
                 (ease_translation, ease_rotation, ease_scale),
                 update_last_easing_tick,
             )
@@ -354,62 +354,6 @@ fn update_last_easing_tick(
     system_change_tick: SystemChangeTick,
 ) {
     *last_easing_tick = LastEasingTick(system_change_tick.this_run());
-}
-
-/// Resets the easing states to `None` when [`Transform`] is modified outside of the fixed timestep schedules
-/// or interpolation logic.
-#[allow(clippy::type_complexity)]
-fn reset_easing_states_on_transform_change(
-    mut query: Query<
-        (
-            Ref<Transform>,
-            Option<&mut TranslationEasingState>,
-            Option<&mut RotationEasingState>,
-            Option<&mut ScaleEasingState>,
-        ),
-        (
-            Changed<Transform>,
-            Or<(
-                With<TranslationEasingState>,
-                With<RotationEasingState>,
-                With<ScaleEasingState>,
-            )>,
-        ),
-    >,
-    last_easing_tick: Res<LastEasingTick>,
-    system_change_tick: SystemChangeTick,
-) {
-    let this_run = system_change_tick.this_run();
-
-    for (transform, translation_easing, rotation_easing, scale_easing) in &mut query {
-        let last_changed = transform.last_changed();
-        let is_user_change = last_changed.is_newer_than(last_easing_tick.0, this_run);
-
-        if !is_user_change {
-            continue;
-        }
-
-        if let Some(mut translation_easing) = translation_easing {
-            if translation_easing.end.is_some()
-                && transform.translation != translation_easing.end.unwrap()
-            {
-                translation_easing.start = None;
-                translation_easing.end = None;
-            }
-        }
-        if let Some(mut rotation_easing) = rotation_easing {
-            if rotation_easing.end.is_some() && transform.rotation != rotation_easing.end.unwrap() {
-                rotation_easing.start = None;
-                rotation_easing.end = None;
-            }
-        }
-        if let Some(mut scale_easing) = scale_easing {
-            if scale_easing.end.is_some() && transform.scale != scale_easing.end.unwrap() {
-                scale_easing.start = None;
-                scale_easing.end = None;
-            }
-        }
-    }
 }
 
 /// Resets the `start` and `end` states for translation interpolation.
