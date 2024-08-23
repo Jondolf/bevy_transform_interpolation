@@ -246,7 +246,6 @@ impl Plugin for TransformInterpolationPlugin {
         app.add_systems(
             FixedFirst,
             (
-                reset_easing_states_on_transform_change,
                 (
                     reset_translation_interpolation,
                     reset_rotation_interpolation,
