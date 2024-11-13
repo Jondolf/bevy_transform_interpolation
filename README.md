@@ -99,10 +99,10 @@ fn setup(mut commands: Commands) {
     ));
     
     // Interpolate the entire transform: translation, rotation, and scale.
-    // The components can be added individually, or using the `TransformInterpolationBundle`.
+    // The components can be added individually, or using the `TransformInterpolation` component.
     commands.spawn((
         TransformBundle::default(),
-        TransformInterpolationBundle::default(),
+        TransformInterpolation,
     ));
 }
 ```

@@ -317,7 +317,6 @@ struct LastEasingTick(Tick);
 ///
 /// On its own, this component is not updated automatically. To perform automatic interpolation,
 /// add the [`TranslationInterpolation`] component.
-
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[reflect(Component, Debug, Default)]
 pub struct TranslationEasingState {

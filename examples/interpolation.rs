@@ -7,7 +7,7 @@ use bevy::{
     },
     prelude::*,
 };
-use bevy_transform_interpolation::{TransformInterpolationBundle, TransformInterpolationPlugin};
+use bevy_transform_interpolation::{TransformInterpolation, TransformInterpolationPlugin};
 
 const MOVEMENT_SPEED: f32 = 250.0;
 const ROTATION_SPEED: f32 = 2.0;
@@ -44,7 +44,7 @@ fn setup(
         Mesh2d(mesh.clone()),
         MeshMaterial2d(materials.add(Color::from(CYAN_400)).clone()),
         Transform::from_xyz(-500.0, 60.0, 0.0),
-        TransformInterpolationBundle::default(),
+        TransformInterpolation,
         MovementDirection(Dir2::X),
     ));
 
