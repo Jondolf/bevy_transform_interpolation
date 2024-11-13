@@ -7,22 +7,32 @@ use bevy::{
     },
     prelude::*,
 };
-use bevy_transform_interpolation::{TransformInterpolation, TransformInterpolationPlugin};
+use bevy_transform_interpolation::prelude::*;
 
 const MOVEMENT_SPEED: f32 = 250.0;
 const ROTATION_SPEED: f32 = 2.0;
 
 fn main() {
-    App::new()
-        .add_plugins((DefaultPlugins, TransformInterpolationPlugin::default()))
-        .insert_resource(Time::<Fixed>::from_hz(5.0))
-        .add_systems(Startup, (setup, setup_text))
-        .add_systems(Update, (change_timestep, update_timestep_text))
-        .add_systems(
-            FixedUpdate,
-            (flip_movement_direction.before(movement), movement, rotate),
-        )
-        .run();
+    let mut app = App::new();
+
+    // Add the `TransformInterpolationPlugin` to the app to enable transform interpolation.
+    app.add_plugins((DefaultPlugins, TransformInterpolationPlugin::default()));
+
+    // Set the fixed timestep to just 5 Hz for demonstration purposes.
+    app.insert_resource(Time::<Fixed>::from_hz(5.0));
+
+    // Setup the scene and UI, and update text in `Update`.
+    app.add_systems(Startup, (setup, setup_text))
+        .add_systems(Update, (change_timestep, update_timestep_text));
+
+    // Move entities in `FixedUpdate`. The movement should appear smooth for interpolated entities.
+    app.add_systems(
+        FixedUpdate,
+        (flip_movement_direction.before(movement), movement, rotate),
+    );
+
+    // Run the app.
+    app.run();
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -33,10 +43,10 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
+    // Spawn a camera.
     commands.spawn(Camera2d);
 
-    let rect_length = 60.0;
-    let mesh = meshes.add(Rectangle::from_length(rect_length));
+    let mesh = meshes.add(Rectangle::from_length(60.0));
 
     // This entity uses transform interpolation.
     commands.spawn((
@@ -70,6 +80,7 @@ fn flip_movement_direction(mut query: Query<(&GlobalTransform, &mut MovementDire
     }
 }
 
+/// Changes the timestep of the simulation when the up or down arrow keys are pressed.
 fn change_timestep(mut time: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInput<KeyCode>>) {
     if keyboard_input.pressed(KeyCode::ArrowUp) {
         let new_timestep = (time.delta_secs_f64() * 0.9).max(1.0 / 255.0);
@@ -81,6 +92,7 @@ fn change_timestep(mut time: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInpu
     }
 }
 
+/// Moves entities based on their `MovementDirection`.
 fn movement(mut query: Query<(&mut Transform, &MovementDirection)>, time: Res<Time>) {
     let delta_secs = time.delta_secs();
 
@@ -89,6 +101,7 @@ fn movement(mut query: Query<(&mut Transform, &MovementDirection)>, time: Res<Ti
     }
 }
 
+/// Rotates entities.
 fn rotate(mut query: Query<&mut Transform, With<MovementDirection>>, time: Res<Time>) {
     let delta_secs = time.delta_secs();
 
@@ -158,8 +171,8 @@ fn setup_text(mut commands: Commands) {
 }
 
 fn update_timestep_text(
-    time: Res<Time<Fixed>>,
     mut text: Single<&mut TextSpan, With<TimestepText>>,
+    time: Res<Time<Fixed>>,
 ) {
     let timestep = time.timestep().as_secs_f32().recip();
     text.0 = format!("{timestep:.2}");
