@@ -284,7 +284,7 @@ impl Plugin for TransformInterpolationPlugin {
         let interpolate_rotation = self.global_rotation_interpolation;
         let interpolate_scale = self.global_scale_interpolation;
 
-        app.observe(
+        app.add_observer(
             move |trigger: Trigger<OnAdd, Transform>, mut commands: Commands| {
                 if interpolate_translation {
                     commands
