@@ -1,4 +1,14 @@
-//! This example showcases how `Transform` interpolation can be used to make movement appear smooth at fixed timesteps.
+//! This example showcases how `Transform` interpolation can be used to make movement
+//! appear smooth at fixed timesteps.
+//!
+//! `Transform` interpolation updates `Transform` at every frame in between
+//! fixed ticks to smooth out the visual result. The interpolation is done
+//! from the previous positions to the current positions, which keeps movement smooth,
+//! but has the downside of making movement feel slightly delayed as the rendered
+//! result lags slightly behind the true positions.
+//!
+//! For an example of how transform extrapolation could be implemented instead,
+//! see `examples/extrapolation.rs`.
 
 use bevy::{
     color::palettes::{
@@ -35,8 +45,13 @@ fn main() {
     app.run();
 }
 
+/// The linear velocity of an entity indicating its movement speed and direction.
 #[derive(Component, Deref, DerefMut)]
-struct MovementDirection(Dir2);
+struct LinearVelocity(Vec2);
+
+/// The angular velocity of an entity indicating its rotation speed.
+#[derive(Component, Deref, DerefMut)]
+struct AngularVelocity(f32);
 
 fn setup(
     mut commands: Commands,
@@ -55,7 +70,8 @@ fn setup(
         MeshMaterial2d(materials.add(Color::from(CYAN_400)).clone()),
         Transform::from_xyz(-500.0, 60.0, 0.0),
         TransformInterpolation,
-        MovementDirection(Dir2::X),
+        LinearVelocity(Vec2::new(MOVEMENT_SPEED, 0.0)),
+        AngularVelocity(ROTATION_SPEED),
     ));
 
     // This entity is simulated in `FixedUpdate` without any smoothing.
@@ -64,18 +80,18 @@ fn setup(
         Mesh2d(mesh.clone()),
         MeshMaterial2d(materials.add(Color::from(RED_400)).clone()),
         Transform::from_xyz(-500.0, -60.0, 0.0),
-        MovementDirection(Dir2::X),
+        LinearVelocity(Vec2::new(MOVEMENT_SPEED, 0.0)),
+        AngularVelocity(ROTATION_SPEED),
     ));
 }
 
 /// Flips the movement directions of objects when they reach the left or right side of the screen.
-fn flip_movement_direction(mut query: Query<(&GlobalTransform, &mut MovementDirection)>) {
-    for (transform, mut dir) in &mut query {
-        let translation = transform.translation();
-        if translation.x > 500.0 && dir.0.x > 0.0 {
-            dir.0 = Dir2::NEG_X;
-        } else if translation.x < -500.0 && dir.0.x < 0.0 {
-            dir.0 = Dir2::X;
+fn flip_movement_direction(mut query: Query<(&Transform, &mut LinearVelocity)>) {
+    for (transform, mut lin_vel) in &mut query {
+        if transform.translation.x > 500.0 && lin_vel.0.x > 0.0 {
+            lin_vel.0 = Vec2::new(-MOVEMENT_SPEED, 0.0);
+        } else if transform.translation.x < -500.0 && lin_vel.0.x < 0.0 {
+            lin_vel.0 = Vec2::new(MOVEMENT_SPEED, 0.0);
         }
     }
 }
@@ -92,21 +108,21 @@ fn change_timestep(mut time: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInpu
     }
 }
 
-/// Moves entities based on their `MovementDirection`.
-fn movement(mut query: Query<(&mut Transform, &MovementDirection)>, time: Res<Time>) {
+/// Moves entities based on their `LinearVelocity`.
+fn movement(mut query: Query<(&mut Transform, &LinearVelocity)>, time: Res<Time>) {
     let delta_secs = time.delta_secs();
 
-    for (mut transform, movement_direction) in &mut query {
-        transform.translation += MOVEMENT_SPEED * movement_direction.extend(0.0) * delta_secs;
+    for (mut transform, lin_vel) in &mut query {
+        transform.translation += lin_vel.extend(0.0) * delta_secs;
     }
 }
 
-/// Rotates entities.
-fn rotate(mut query: Query<&mut Transform, With<MovementDirection>>, time: Res<Time>) {
+/// Rotates entities based on their `AngularVelocity`.
+fn rotate(mut query: Query<(&mut Transform, &AngularVelocity)>, time: Res<Time>) {
     let delta_secs = time.delta_secs();
 
-    for mut transform in &mut query {
-        transform.rotate_local_z(ROTATION_SPEED * delta_secs);
+    for (mut transform, ang_vel) in &mut query {
+        transform.rotate_local_z(ang_vel.0 * delta_secs);
     }
 }
 

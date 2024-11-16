@@ -1,6 +1,6 @@
 //! # `bevy_transform_interpolation`
 //!
-//! A general-purpose [`Transform`] interpolation plugin for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
+//! A [`Transform`] interpolation library for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
 //!
 //! ## Features
 //!
@@ -105,7 +105,7 @@
 //! This way, `start` represents the "old" state, while `end` represents the "new" state after changes have been made to [`Transform`]
 //! in between [`FixedFirst`] and [`FixedLast`]. Rotation and scale are handled similarly.
 //!
-//! The easing is then performed in [`PostUpdate`], before Bevy's transform propagation systems. If the [`Transform`] is detected to have changed
+//! The actual easing is then performed in [`PostUpdate`], before Bevy's transform propagation systems. If the [`Transform`] is detected to have changed
 //! since the last easing run but *outside* of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
 //!
 //! Note that the core easing logic and components are intentionally not tied to interpolation directly.
@@ -152,6 +152,7 @@ use bevy::{
 ///
 /// To actually perform automatic easing, an easing backend that updates the `start` and `end` states must be used.
 /// The [`TransformInterpolationPlugin`] is provided for transform interpolation, but custom backends can also be implemented.
+#[derive(Debug, Default)]
 pub struct TransformEasingPlugin;
 
 impl Plugin for TransformEasingPlugin {
@@ -233,7 +234,9 @@ struct LastEasingTick(Tick);
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[reflect(Component, Debug, Default)]
 pub struct TranslationEasingState {
+    /// The start translation for the interpolation.
     pub start: Option<Vec3>,
+    /// The end translation for the interpolation.
     pub end: Option<Vec3>,
 }
 
@@ -245,7 +248,9 @@ pub struct TranslationEasingState {
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[reflect(Component, Debug, Default)]
 pub struct RotationEasingState {
+    /// The start rotation for the interpolation.
     pub start: Option<Quat>,
+    /// The end rotation for the interpolation.
     pub end: Option<Quat>,
 }
 
@@ -257,7 +262,9 @@ pub struct RotationEasingState {
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[reflect(Component, Debug, Default)]
 pub struct ScaleEasingState {
+    /// The start scale for the interpolation.
     pub start: Option<Vec3>,
+    /// The end scale for the interpolation.
     pub end: Option<Vec3>,
 }
 
@@ -270,8 +277,8 @@ fn update_last_easing_tick(
 
 /// Resets the easing states to `None` when [`Transform`] is modified outside of the fixed timestep schedules
 /// or interpolation logic. This makes it possible to "teleport" entities in schedules like [`Update`].
-#[allow(clippy::type_complexity)]
-fn reset_easing_states_on_transform_change(
+#[allow(clippy::type_complexity, private_interfaces)]
+pub fn reset_easing_states_on_transform_change(
     mut query: Query<
         (
             Ref<Transform>,
@@ -293,71 +300,65 @@ fn reset_easing_states_on_transform_change(
 ) {
     let this_run = system_change_tick.this_run();
 
-    for (transform, translation_easing, rotation_easing, scale_easing) in &mut query {
-        let last_changed = transform.last_changed();
-        let is_user_change = last_changed.is_newer_than(last_easing_tick.0, this_run);
+    query.par_iter_mut().for_each(
+        |(transform, translation_easing, rotation_easing, scale_easing)| {
+            let last_changed = transform.last_changed();
+            let is_user_change = last_changed.is_newer_than(last_easing_tick.0, this_run);
 
-        if !is_user_change {
-            continue;
-        }
+            if !is_user_change {
+                return;
+            }
 
-        if let Some(mut translation_easing) = translation_easing {
-            if translation_easing.end.is_some()
-                && transform.translation != translation_easing.end.unwrap()
-            {
-                translation_easing.start = None;
-                translation_easing.end = None;
+            if let Some(mut translation_easing) = translation_easing {
+                if translation_easing.end.is_some()
+                    && (transform.translation != translation_easing.start.unwrap()
+                        && transform.translation != translation_easing.end.unwrap())
+                {
+                    translation_easing.start = None;
+                    translation_easing.end = None;
+                }
             }
-        }
-        if let Some(mut rotation_easing) = rotation_easing {
-            if rotation_easing.end.is_some() && transform.rotation != rotation_easing.end.unwrap() {
-                rotation_easing.start = None;
-                rotation_easing.end = None;
+            if let Some(mut rotation_easing) = rotation_easing {
+                if rotation_easing.end.is_some()
+                    && (transform.rotation != rotation_easing.start.unwrap()
+                        && transform.rotation != rotation_easing.end.unwrap())
+                {
+                    rotation_easing.start = None;
+                    rotation_easing.end = None;
+                }
             }
-        }
-        if let Some(mut scale_easing) = scale_easing {
-            if scale_easing.end.is_some() && transform.scale != scale_easing.end.unwrap() {
-                scale_easing.start = None;
-                scale_easing.end = None;
+            if let Some(mut scale_easing) = scale_easing {
+                if scale_easing.end.is_some()
+                    && (transform.scale != scale_easing.start.unwrap()
+                        && transform.scale != scale_easing.end.unwrap())
+                {
+                    scale_easing.start = None;
+                    scale_easing.end = None;
+                }
             }
-        }
-    }
+        },
+    );
 }
 
 /// Resets the `start` and `end` states for translation interpolation.
-fn reset_translation_easing(mut query: Query<(&mut Transform, &mut TranslationEasingState)>) {
-    for (mut transform, mut easing) in &mut query {
-        // Make sure the previous easing is fully applied.
-        if let Some(end) = easing.end {
-            transform.translation = end;
-        }
-
+fn reset_translation_easing(mut query: Query<&mut TranslationEasingState>) {
+    for mut easing in &mut query {
         easing.start = None;
         easing.end = None;
     }
 }
 
 /// Resets the `start` and `end` states for rotation interpolation.
-fn reset_rotation_easing(mut query: Query<(&mut Transform, &mut RotationEasingState)>) {
-    for (mut transform, mut easing) in &mut query {
-        // Make sure the previous easing is fully applied.
-        if let Some(end) = easing.end {
-            transform.rotation = end;
-        }
-
+fn reset_rotation_easing(mut query: Query<&mut RotationEasingState>) {
+    for mut easing in &mut query {
         easing.start = None;
         easing.end = None;
     }
 }
 
 /// Resets the `start` and `end` states for scale interpolation.
-fn reset_scale_easing(mut query: Query<(&mut Transform, &mut ScaleEasingState)>) {
-    for (mut transform, mut easing) in &mut query {
-        // Make sure the previous easing is fully applied.
-        if let Some(end) = easing.end {
-            transform.scale = end;
-        }
-
+fn reset_scale_easing(mut query: Query<&mut ScaleEasingState>) {
+    for mut easing in &mut query {
         easing.start = None;
         easing.end = None;
     }
@@ -385,6 +386,8 @@ fn ease_rotation(mut query: Query<(&mut Transform, &RotationEasingState)>, time:
         .par_iter_mut()
         .for_each(|(mut transform, interpolation)| {
             if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
+                // Note: `slerp` will always take the shortest path, but when the two rotations are more than
+                // 180 degrees apart, this can cause visual artifacts as the rotation "flips" to the other side.
                 transform.rotation = start.slerp(end, overstep);
             }
         });

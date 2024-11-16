@@ -146,6 +146,17 @@ impl Plugin for TransformInterpolationPlugin {
             NoScaleInterpolation,
         )>();
 
+        app.add_systems(
+            FixedFirst,
+            (
+                complete_translation_easing,
+                complete_rotation_easing,
+                complete_scale_easing,
+            )
+                .chain()
+                .before(TransformEasingSet::Reset),
+        );
+
         // Update the start state of the interpolation at the start of the fixed timestep.
         app.add_systems(
             FixedFirst,
@@ -273,7 +284,58 @@ pub struct NoRotationInterpolation;
 #[reflect(Component, Debug, Default)]
 pub struct NoScaleInterpolation;
 
-pub(crate) fn update_translation_interpolation_start(
+/// Makes sure the previous translation easing is fully applied before the next easing starts.
+fn complete_translation_easing(
+    mut query: Query<
+        (&mut Transform, &TranslationEasingState),
+        (
+            With<TranslationInterpolation>,
+            Without<NoTranslationInterpolation>,
+        ),
+    >,
+) {
+    for (mut transform, easing) in &mut query {
+        // Make sure the previous easing is fully applied.
+        if let Some(end) = easing.end {
+            transform.translation = end;
+        }
+    }
+}
+
+/// Makes sure the previous rotation easing is fully applied before the next easing starts.
+fn complete_rotation_easing(
+    mut query: Query<
+        (&mut Transform, &RotationEasingState),
+        (
+            With<RotationInterpolation>,
+            Without<NoRotationInterpolation>,
+        ),
+    >,
+) {
+    for (mut transform, easing) in &mut query {
+        // Make sure the previous easing is fully applied.
+        if let Some(end) = easing.end {
+            transform.rotation = end;
+        }
+    }
+}
+
+/// Makes sure the previous scale easing is fully applied before the next easing starts.
+fn complete_scale_easing(
+    mut query: Query<
+        (&mut Transform, &ScaleEasingState),
+        (With<ScaleInterpolation>, Without<NoScaleInterpolation>),
+    >,
+) {
+    for (mut transform, easing) in &mut query {
+        // Make sure the previous easing is fully applied.
+        if let Some(end) = easing.end {
+            transform.scale = end;
+        }
+    }
+}
+
+fn update_translation_interpolation_start(
     mut query: Query<
         (&Transform, &mut TranslationEasingState),
         (
@@ -287,7 +349,7 @@ pub(crate) fn update_translation_interpolation_start(
     }
 }
 
-pub(crate) fn update_translation_interpolation_end(
+fn update_translation_interpolation_end(
     mut query: Query<
         (&Transform, &mut TranslationEasingState),
         (
@@ -301,7 +363,7 @@ pub(crate) fn update_translation_interpolation_end(
     }
 }
 
-pub(crate) fn update_rotation_interpolation_start(
+fn update_rotation_interpolation_start(
     mut query: Query<
         (&Transform, &mut RotationEasingState),
         (
@@ -315,7 +377,7 @@ pub(crate) fn update_rotation_interpolation_start(
     }
 }
 
-pub(crate) fn update_rotation_interpolation_end(
+fn update_rotation_interpolation_end(
     mut query: Query<
         (&Transform, &mut RotationEasingState),
         (
@@ -329,7 +391,7 @@ pub(crate) fn update_rotation_interpolation_end(
     }
 }
 
-pub(crate) fn update_scale_interpolation_start(
+fn update_scale_interpolation_start(
     mut query: Query<
         (&Transform, &mut ScaleEasingState),
         (With<ScaleInterpolation>, Without<NoScaleInterpolation>),
@@ -340,7 +402,7 @@ pub(crate) fn update_scale_interpolation_start(
     }
 }
 
-pub(crate) fn update_scale_interpolation_end(
+fn update_scale_interpolation_end(
     mut query: Query<
         (&Transform, &mut ScaleEasingState),
         (With<ScaleInterpolation>, Without<NoScaleInterpolation>),
