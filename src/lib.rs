@@ -201,7 +201,7 @@ impl Plugin for TransformEasingPlugin {
         // Perform easing.
         app.add_systems(
             PostUpdate,
-            (ease_translation_lerp, ease_rotation_slerp, ease_scale)
+            (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
                 .in_set(TransformEasingSet::Ease),
         );
 
@@ -404,7 +404,7 @@ fn ease_rotation_slerp(
 }
 
 /// Eases the scales of entities with linear interpolation.
-fn ease_scale(mut query: Query<(&mut Transform, &ScaleEasingState)>, time: Res<Time<Fixed>>) {
+fn ease_scale_lerp(mut query: Query<(&mut Transform, &ScaleEasingState)>, time: Res<Time<Fixed>>) {
     let overstep = time.overstep_fraction();
 
     query.iter_mut().for_each(|(mut transform, interpolation)| {
