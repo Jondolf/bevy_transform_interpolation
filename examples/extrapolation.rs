@@ -1,3 +1,6 @@
+//! Transform extrapolation is not a built-in feature in `bevy_transform_interpolation`, because it requires velocity.
+//! However, it can be implemented in a relatively straightforward way on top of `TransformEasingPlugin`.
+//!
 //! This example showcases how `Transform` extrapolation can be used to make movement
 //! appear smooth at fixed timesteps, and how it compares to `Transform` interpolation.
 //!
