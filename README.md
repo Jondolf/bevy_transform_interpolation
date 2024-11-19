@@ -64,7 +64,7 @@ Next, add the `TransformInterpolationPlugin`:
 
 ```rust
 use bevy::prelude::*;
-use bevy_transform_interpolation::*;
+use bevy_transform_interpolation::prelude::*;
 
 fn main() {
     App::new()
@@ -79,21 +79,21 @@ You can choose to interpolate transform, rotation, or scale individually, or use
 
 ```rust
 use bevy::prelude::*;
-use bevy_transform_interpolation::*;
+use bevy_transform_interpolation::prelude::*;
 
 fn setup(mut commands: Commands) {
     // Only interpolate translation.
-    commands.spawn((TransformBundle::default(), TranslationInterpolation));
+    commands.spawn((Transform::default(), TranslationInterpolation));
     
     // Only interpolate rotation.
-    commands.spawn((TransformBundle::default(), RotationInterpolation));
+    commands.spawn((Transform::default(), RotationInterpolation));
     
     // Only interpolate scale.
-    commands.spawn((TransformBundle::default(), ScaleInterpolation));
+    commands.spawn((Transform::default(), ScaleInterpolation));
     
     // Interpolate translation and rotation, but not scale.
     commands.spawn((
-        TransformBundle::default(),
+        Transform::default(),
         TranslationInterpolation,
         RotationInterpolation,
     ));
@@ -101,7 +101,7 @@ fn setup(mut commands: Commands) {
     // Interpolate the entire transform: translation, rotation, and scale.
     // The components can be added individually, or using the `TransformInterpolation` component.
     commands.spawn((
-        TransformBundle::default(),
+        Transform::default(),
         TransformInterpolation,
     ));
 }
@@ -112,7 +112,7 @@ by configuring the `TransformInterpolationPlugin`:
 
 ```rust
 use bevy::prelude::*;
-use bevy_transform_interpolation::*;
+use bevy_transform_interpolation::prelude::*;
 
 fn main() {
     App::new()
@@ -164,17 +164,6 @@ since the last easing run but *outside* of the fixed timestep schedules, the eas
 Note that the core easing logic and components are intentionally not tied to interpolation directly.
 A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
 supplying its own `TranslationExtrapolation` and `RotationExtrapolation` components.
-
-## Caveats
-
-- In cases where the previous or current gameplay transform are already stored separately from `Transform`,
-  storing them in the easing states as well may be redundant. Although it *is* still useful for allowing
-  `Transform` to be modified directly and for wider compatibility with the ecosystem.
-- Transform extrapolation is currently not supported as a built-in feature, as it typically requires a velocity
-  for the prediction of the next state. However, it could be supported by external libraries such as physics engines
-  in a similar way to `src/interpolation.rs`, and simply updating the `start` and `end` states differently.
-- Large angular velocities may cause visual artifacts, as the interpolation follows the shortest path.
-  A physics engine could handle this properly.
 
 ## License
 
