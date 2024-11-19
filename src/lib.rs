@@ -178,9 +178,15 @@ impl Plugin for TransformEasingPlugin {
         // Perform transform easing in `PostUpdate`, before transform propagation.
         app.configure_sets(
             PostUpdate,
-            TransformEasingSet::Ease.before(TransformSystem::TransformPropagate),
+            (
+                TransformEasingSet::Ease,
+                TransformEasingSet::UpdateEasingTick,
+            )
+                .chain()
+                .before(TransformSystem::TransformPropagate),
         );
 
+        // Reset easing states.
         app.add_systems(
             FixedFirst,
             (
@@ -197,13 +203,20 @@ impl Plugin for TransformEasingPlugin {
 
         app.add_systems(
             PostUpdate,
-            (
-                reset_easing_states_on_transform_change,
-                (ease_translation, ease_rotation, ease_scale),
-                update_last_easing_tick,
-            )
-                .chain()
+            reset_easing_states_on_transform_change.before(TransformEasingSet::Ease),
+        );
+
+        // Perform easing.
+        app.add_systems(
+            PostUpdate,
+            (ease_translation_lerp, ease_rotation_slerp, ease_scale)
                 .in_set(TransformEasingSet::Ease),
+        );
+
+        // Update the last easing tick.
+        app.add_systems(
+            PostUpdate,
+            update_last_easing_tick.in_set(TransformEasingSet::UpdateEasingTick),
         );
     }
 }
@@ -220,6 +233,8 @@ pub enum TransformEasingSet {
     /// Eases the transform values in between the `start` and `end` states.
     /// Runs in [`PostUpdate`], before [`TransformSystem::TransformPropagate`].
     Ease,
+    /// Updates [`LastEasingTick`], the last tick when easing was performed.
+    UpdateEasingTick,
 }
 
 /// A resource that stores the last tick when easing was performed.
@@ -364,8 +379,8 @@ fn reset_scale_easing(mut query: Query<&mut ScaleEasingState>) {
     }
 }
 
-/// Eases the translations of entities.
-fn ease_translation(
+/// Eases the translations of entities with linear interpolation.
+fn ease_translation_lerp(
     mut query: Query<(&mut Transform, &TranslationEasingState)>,
     time: Res<Time<Fixed>>,
 ) {
@@ -378,8 +393,11 @@ fn ease_translation(
     });
 }
 
-/// Eases the rotations of entities.
-fn ease_rotation(mut query: Query<(&mut Transform, &RotationEasingState)>, time: Res<Time<Fixed>>) {
+/// Eases the rotations of entities with spherical linear interpolation.
+fn ease_rotation_slerp(
+    mut query: Query<(&mut Transform, &RotationEasingState)>,
+    time: Res<Time<Fixed>>,
+) {
     let overstep = time.overstep_fraction();
 
     query
@@ -393,7 +411,7 @@ fn ease_rotation(mut query: Query<(&mut Transform, &RotationEasingState)>, time:
         });
 }
 
-/// Eases the scales of entities.
+/// Eases the scales of entities with linear interpolation.
 fn ease_scale(mut query: Query<(&mut Transform, &ScaleEasingState)>, time: Res<Time<Fixed>>) {
     let overstep = time.overstep_fraction();
 
