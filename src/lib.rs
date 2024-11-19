@@ -5,9 +5,10 @@
 //! ## Features
 //!
 //! - Interpolate changes made to translation, rotation, and scale in [`FixedUpdate`].
-//! - Interpolate individual [`Transform`] properties to prevent unnecessary computation.
+//! - Interpolate individual [`Transform`] properties to reduce unnecessary computation.
 //! - Apply interpolation to individual entities or to all entities.
-//! - Custom easing backends, making it straightforward to implement things like transform extrapolation.
+//! - Works out of the box with physics engines using fixed timesteps.
+//! - Extensible with custom easing backends.
 //!
 //! ## Getting Started
 //!
@@ -20,7 +21,7 @@
 //!
 //! To enable [`Transform`] interpolation, add the [`TransformInterpolationPlugin`] to your app:
 //!
-//! ```rust,no_run
+//! ```no_run
 //! use bevy::prelude::*;
 //! use bevy_transform_interpolation::prelude::*;
 //!
@@ -89,7 +90,7 @@
 //! Internally, `bevy_transform_interpolation` simply maintains components that store the `start` and `end` of the interpolation.
 //! For example, translation uses the following component for easing the movement:
 //!
-//! ```rust
+//! ```
 //! # use bevy::prelude::*;
 //! #
 //! pub struct TranslationEasingState {
@@ -111,15 +112,6 @@
 //! Note that the core easing logic and components are intentionally not tied to interpolation directly.
 //! A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
 //! supplying its own `TranslationExtrapolation` and `RotationExtrapolation` components.
-//!
-//! ## Caveats
-//!
-//! - In cases where the previous or current gameplay transform are already stored separately from [`Transform`],
-//!   storing them in the easing states as well may be redundant. Although it *is* still useful for allowing
-//!   [`Transform`] to be modified directly and for wider compatibility with the ecosystem.
-//! - Transform extrapolation is currently not supported as a built-in feature, as it typically requires a velocity
-//!   for the prediction of the next state. However, it could be supported by external libraries such as physics engines
-//!   in a similar way to `src/interpolation.rs`, and simply updating the `start` and `end` states differently.
 
 #![allow(clippy::needless_doctest_main)]
 
