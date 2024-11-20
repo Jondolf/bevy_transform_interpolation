@@ -1,10 +1,13 @@
-//! [`Transform`] interpolation, making movement in [`FixedUpdate`] appear smooth.
+//! [`Transform`] interpolation, making movement in [`FixedUpdate`] appear smooth
+//! by easing between the old and current [`Transform`] in between fixed timesteps.
 //!
 //! See the [`TransformInterpolationPlugin`] for more information.
 
 #![allow(clippy::type_complexity)]
 
-use crate::*;
+use crate::{
+    prelude::*, RotationEasingState, ScaleEasingState, TransformEasingSet, TranslationEasingState,
+};
 use bevy::prelude::*;
 
 /// A plugin for [`Transform`] interpolation, making movement in [`FixedUpdate`] appear smooth.
@@ -33,16 +36,16 @@ use bevy::prelude::*;
 /// }
 /// ```
 ///
-/// Now, any changes made to the [`Transform`] of the entity in [`FixedPreUpdate`], [`FixedUpdate`], or [`FixedPostUpdate`]
-/// will automatically be smoothed in between fixed timesteps.
+/// Now, any changes made to the [`Transform`] of the entity in [`FixedPreUpdate`], [`FixedUpdate`],
+/// or [`FixedPostUpdate`] will automatically be smoothed in between fixed timesteps.
 ///
-/// Transform properties can also be interpolated individually by adding the [`TranslationInterpolation`], [`RotationInterpolation`],
-/// and [`ScaleInterpolation`] components.
+/// Transform properties can also be interpolated individually by adding the [`TranslationInterpolation`],
+/// [`RotationInterpolation`], and [`ScaleInterpolation`] components.
 ///
 /// ```
-/// use bevy::prelude::*;
-/// use bevy_transform_interpolation::prelude::*;
-///
+/// # use bevy::prelude::*;
+/// # use bevy_transform_interpolation::prelude::*;
+/// #
 /// fn setup(mut commands: Commands) {
 ///     // Only interpolate translation.
 ///     commands.spawn((Transform::default(), TranslationInterpolation));
@@ -66,10 +69,10 @@ use bevy::prelude::*;
 /// [`TransformInterpolationPlugin::interpolate_all()`], or set the [`interpolate_translation_all`],
 /// [`interpolate_rotation_all`], and [`interpolate_scale_all`] fields.
 ///
-/// ```
-/// use bevy::prelude::*;
-/// use bevy_transform_interpolation::prelude::*;
-///
+/// ```no_run
+/// # use bevy::prelude::*;
+/// # use bevy_transform_interpolation::prelude::*;
+/// #
 /// fn main() {
 ///    App::build()
 ///       .add_plugins(TransformInterpolationPlugin {
@@ -84,8 +87,8 @@ use bevy::prelude::*;
 /// ```
 ///
 /// When interpolation is enabled for all entities by default, you can still opt out of it for individual entities
-/// by adding the [`NoTransformInterpolation`] component, or the individual [`NoTranslationInterpolation`],
-/// [`NoRotationInterpolation`], and [`NoScaleInterpolation`] components.
+/// by adding the [`NoTransformEasing`] component, or the individual [`NoTranslationEasing`], [`NoRotationEasing`],
+/// and [`NoScaleEasing`] components.
 ///
 /// Note that changing [`Transform`] manually in any schedule that *doesn't* use a fixed timestep is also supported,
 /// but it is equivalent to teleporting, and disables interpolation for the entity for the remainder of that fixed timestep.
@@ -98,33 +101,41 @@ use bevy::prelude::*;
 ///
 /// For games where low latency is crucial for gameplay, such as in some first-person shooters
 /// or racing games, the small delay introduced by interpolation may be undesirable. In those cases,
-/// one option is to use *transform extrapolation*, which predicts future positions based on velocity.
-/// This can make movement appear more responsive, but can also lead to jittery movement when the prediction is incorrect.
+/// one option is to use the [`TransformExtrapolationPlugin`] instea.
 ///
-/// Because good extrapolation requires velocity, it is currently not a built-in feature for `bevy_transform_interpolation`.
-/// However, it is relatively straightforward to implement your own extrapolation system on top of the [`TransformEasingPlugin`].
-/// An example of this can be found in `examples/extrapolation.rs`.
+/// Transform extrapolation predicts future positions based on velocity, and applies easing between
+/// the current and predicted [`Transform`]. This results in movement that looks smooth and feels responsive,
+/// but can stutter when the prediction is incorrect, such as when velocity changes abruptly.
+///
+/// # Easing Backends
+///
+/// By default, transform interpolation uses linear interpolation (`lerp`) for easing translation and scale,
+/// and spherical linear interpolation (`slerp`) for easing rotation.
+///
+/// If the previous and current velocities are also available, it is possible to use [Hermite interpolation]
+/// with the [`TransformHermitePlugin`] to get smoother and more accurate easing. To enable Hermite interpolation,
+/// add the [`TransformHermite`] component to the entity in addition to the core interpolation components.
 #[derive(Debug, Default)]
 pub struct TransformInterpolationPlugin {
     /// If `true`, translation will be interpolated for all entities with the [`Transform`] component by default.
     ///
-    /// This can be overridden for individual entities by adding the [`NoTranslationInterpolation`] or [`NoTransformInterpolation`] component.
+    /// This can be overridden for individual entities by adding the [`NoTranslationEasing`] or [`NoTransformEasing`] component.
     pub interpolate_translation_all: bool,
     /// If `true`, rotation will be interpolated for all entities with the [`Transform`] component by default.
     ///
-    /// This can be overridden for individual entities by adding the [`NoRotationInterpolation`] or [`NoTransformInterpolation`] component.
+    /// This can be overridden for individual entities by adding the [`NoRotationEasing`] or [`NoTransformEasing`] component.
     pub interpolate_rotation_all: bool,
     /// If `true`, scale will be interpolated for all entities with the [`Transform`] component by default.
     ///
-    /// This can be overridden for individual entities by adding the [`NoScaleInterpolation`] or [`NoTransformInterpolation`] component.
+    /// This can be overridden for individual entities by adding the [`NoScaleEasing`] or [`NoTransformEasing`] component.
     pub interpolate_scale_all: bool,
 }
 
 impl TransformInterpolationPlugin {
     /// Enables interpolation for translation, rotation, and scale for all entities with the [`Transform`] component.
     ///
-    /// This can be overridden for individual entities by adding the [`NoTransformInterpolation`] component,
-    /// or the individual [`NoTranslationInterpolation`], [`NoRotationInterpolation`], and [`NoScaleInterpolation`] components.
+    /// This can be overridden for individual entities by adding the [`NoTransformEasing`] component,
+    /// or the individual [`NoTranslationEasing`], [`NoRotationEasing`], and [`NoScaleEasing`] components.
     pub const fn interpolate_all() -> Self {
         Self {
             interpolate_translation_all: true,
@@ -141,9 +152,6 @@ impl Plugin for TransformInterpolationPlugin {
             TranslationInterpolation,
             RotationInterpolation,
             ScaleInterpolation,
-            NoTranslationInterpolation,
-            NoRotationInterpolation,
-            NoScaleInterpolation,
         )>();
 
         app.add_systems(
@@ -238,60 +246,11 @@ pub struct RotationInterpolation;
 #[require(ScaleEasingState)]
 pub struct ScaleInterpolation;
 
-/// Explicitly marks this entity as having no transform interpolation.
-///
-/// This can be used to override the [`interpolate_translation_all`],
-/// [`interpolate_rotation_all`], and [`interpolate_scale_all`] properties
-/// of the [`TransformInterpolationPlugin`] for this entity.
-///
-/// [`interpolate_translation_all`]: TransformInterpolationPlugin::interpolate_translation_all
-/// [`interpolate_rotation_all`]: TransformInterpolationPlugin::interpolate_rotation_all
-/// [`interpolate_scale_all`]: TransformInterpolationPlugin::interpolate_scale_all
-///
-/// See the [`TransformInterpolationPlugin`] for more information.
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
-#[reflect(Component, Debug, Default)]
-#[require(TranslationInterpolation, RotationInterpolation, ScaleInterpolation)]
-pub struct NoTransformInterpolation;
-
-/// Explicitly marks this entity as having translation interpolation disabled.
-///
-/// This can be used to override [`TransformInterpolationPlugin::interpolate_translation_all`]
-/// for this entity.
-///
-/// See the [`TransformInterpolationPlugin`] for more information.
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
-#[reflect(Component, Debug, Default)]
-pub struct NoTranslationInterpolation;
-
-/// Explicitly marks this entity as having rotation interpolation disabled.
-///
-/// This can be used to override [`TransformInterpolationPlugin::interpolate_rotation_all`]
-/// for this entity.
-///
-/// See the [`TransformInterpolationPlugin`] for more information.
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
-#[reflect(Component, Debug, Default)]
-pub struct NoRotationInterpolation;
-
-/// Explicitly marks this entity as having scale interpolation disabled.
-///
-/// This can be used to override [`TransformInterpolationPlugin::interpolate_scale_all`]
-/// for this entity.
-///
-/// See the [`TransformInterpolationPlugin`] for more information.
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
-#[reflect(Component, Debug, Default)]
-pub struct NoScaleInterpolation;
-
 /// Makes sure the previous translation easing is fully applied before the next easing starts.
 fn complete_translation_easing(
     mut query: Query<
         (&mut Transform, &TranslationEasingState),
-        (
-            With<TranslationInterpolation>,
-            Without<NoTranslationInterpolation>,
-        ),
+        (With<TranslationInterpolation>, Without<NoTranslationEasing>),
     >,
 ) {
     for (mut transform, easing) in &mut query {
@@ -306,10 +265,7 @@ fn complete_translation_easing(
 fn complete_rotation_easing(
     mut query: Query<
         (&mut Transform, &RotationEasingState),
-        (
-            With<RotationInterpolation>,
-            Without<NoRotationInterpolation>,
-        ),
+        (With<RotationInterpolation>, Without<NoRotationEasing>),
     >,
 ) {
     for (mut transform, easing) in &mut query {
@@ -324,7 +280,7 @@ fn complete_rotation_easing(
 fn complete_scale_easing(
     mut query: Query<
         (&mut Transform, &ScaleEasingState),
-        (With<ScaleInterpolation>, Without<NoScaleInterpolation>),
+        (With<ScaleInterpolation>, Without<NoScaleEasing>),
     >,
 ) {
     for (mut transform, easing) in &mut query {
@@ -338,10 +294,7 @@ fn complete_scale_easing(
 fn update_translation_interpolation_start(
     mut query: Query<
         (&Transform, &mut TranslationEasingState),
-        (
-            With<TranslationInterpolation>,
-            Without<NoTranslationInterpolation>,
-        ),
+        (With<TranslationInterpolation>, Without<NoTranslationEasing>),
     >,
 ) {
     for (transform, mut easing) in &mut query {
@@ -352,10 +305,7 @@ fn update_translation_interpolation_start(
 fn update_translation_interpolation_end(
     mut query: Query<
         (&Transform, &mut TranslationEasingState),
-        (
-            With<TranslationInterpolation>,
-            Without<NoTranslationInterpolation>,
-        ),
+        (With<TranslationInterpolation>, Without<NoTranslationEasing>),
     >,
 ) {
     for (transform, mut easing) in &mut query {
@@ -366,10 +316,7 @@ fn update_translation_interpolation_end(
 fn update_rotation_interpolation_start(
     mut query: Query<
         (&Transform, &mut RotationEasingState),
-        (
-            With<RotationInterpolation>,
-            Without<NoRotationInterpolation>,
-        ),
+        (With<RotationInterpolation>, Without<NoRotationEasing>),
     >,
 ) {
     for (transform, mut easing) in &mut query {
@@ -380,10 +327,7 @@ fn update_rotation_interpolation_start(
 fn update_rotation_interpolation_end(
     mut query: Query<
         (&Transform, &mut RotationEasingState),
-        (
-            With<RotationInterpolation>,
-            Without<NoRotationInterpolation>,
-        ),
+        (With<RotationInterpolation>, Without<NoRotationEasing>),
     >,
 ) {
     for (transform, mut easing) in &mut query {
@@ -394,7 +338,7 @@ fn update_rotation_interpolation_end(
 fn update_scale_interpolation_start(
     mut query: Query<
         (&Transform, &mut ScaleEasingState),
-        (With<ScaleInterpolation>, Without<NoScaleInterpolation>),
+        (With<ScaleInterpolation>, Without<NoScaleEasing>),
     >,
 ) {
     for (transform, mut easing) in &mut query {
@@ -405,7 +349,7 @@ fn update_scale_interpolation_start(
 fn update_scale_interpolation_end(
     mut query: Query<
         (&Transform, &mut ScaleEasingState),
-        (With<ScaleInterpolation>, Without<NoScaleInterpolation>),
+        (With<ScaleInterpolation>, Without<NoScaleEasing>),
     >,
 ) {
     for (transform, mut easing) in &mut query {

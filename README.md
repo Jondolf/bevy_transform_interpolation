@@ -130,8 +130,8 @@ fn main() {
 }
 ```
 
-If interpolation is enabled globally, it can still be disabled for individual entities using the `NoTranslationInterpolation`,
-`NoRotationInterpolation`, and `NoScaleInterpolation` components.
+If interpolation is enabled globally, it can still be disabled for individual entities using the `NoTranslationEasing`,
+`NoRotationEasing`, and `NoScaleEasing` components.
 
 Now, any changes made to `Transform` in `FixedPreUpdate`, `FixedUpdate`, or `FixedPostUpdate` will automatically
 be smoothed in between the fixed timesteps for entities that have transform interpolation enabled.

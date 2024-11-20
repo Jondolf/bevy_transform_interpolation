@@ -1,13 +1,15 @@
 //! # `bevy_transform_interpolation`
 //!
-//! A [`Transform`] interpolation library for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
+//! A drop-in [`Transform`] interpolation solution for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
 //!
 //! ## Features
 //!
-//! - Interpolate changes made to translation, rotation, and scale in [`FixedUpdate`].
-//! - Interpolate individual [`Transform`] properties to reduce unnecessary computation.
-//! - Apply interpolation to individual entities or to all entities.
+//! - Automatically smooth out movement in [`FixedPreUpdate`], [`FixedUpdate`], and [`FixedPostUpdate`].
+//! - Support for both [`Transform`] [interpolation](TransformInterpolationPlugin) and [extrapolation](TransformExtrapolationPlugin).
+//! - Granularly ease individual [`Transform`] properties to reduce unnecessary computation.
+//! - Apply easing to specific entities or to all entities.
 //! - Works out of the box with physics engines using fixed timesteps.
+//! - Optional [Hermite interpolation][`TransformHermitePlugin`] to produce more natural and accurate movement that considers velocity.
 //! - Extensible with custom easing backends.
 //!
 //! ## Getting Started
@@ -36,9 +38,9 @@
 //! By default, interpolation is only performed for entities with the [`TransformInterpolation`] component:
 //!
 //! ```
-//! use bevy::prelude::*;
-//! use bevy_transform_interpolation::prelude::*;
-//!
+//! # use bevy::prelude::*;
+//! # use bevy_transform_interpolation::prelude::*;
+//! #
 //! fn setup(mut commands: Commands) {
 //!     // Interpolate the entire transform: translation, rotation, and scale.
 //!     commands.spawn((
@@ -55,9 +57,9 @@
 //! [`TransformInterpolationPlugin::interpolate_all()`]:
 //!
 //! ```
-//! use bevy::prelude::*;
-//! use bevy_transform_interpolation::prelude::*;
-//!
+//! # use bevy::prelude::*;
+//! # use bevy_transform_interpolation::prelude::*;
+//! #
 //! fn main() {
 //!    App::build()
 //!       .add_plugins(TransformInterpolationPlugin::interpolate_all())
@@ -66,24 +68,18 @@
 //! }
 //! ```
 //!
-//! It is also possible to opt out of interpolation for individual entities, or even interpolate
-//! specific [`Transform`] properties granularly. See the documentation of the [`TransformInterpolationPlugin`]
-//! for more information.
+//! See the documentation of the [`TransformInterpolationPlugin`] for a more detailed overview of what it can do.
 //!
-//! ## Custom Easing Backends
+//! ## Advanced Usage
 //!
-//! Transforms are interpolated using easing functions, which are applied to the `start` and `end`
-//! of the [`TranslationEasingState`], [`RotationEasingState`], and [`ScaleEasingState`] components.
-//! These components are added and managed automatically for entities with the [`TransformInterpolation`] component.
+//! For a lot of applications, the functionality shown in the [Getting Started](#getting-started) guide might be all you need!
+//! However, `bevy_transform_interpolation` has a lot more to offer:
 //!
-//! In the earlier example, the [`TransformInterpolationPlugin`] was used to enable interpolation.
-//! However, the core easing logic and state management are actually handled by the automatically
-//! added [`TransformEasingPlugin`]. The [`TransformInterpolationPlugin`] only updates the `start`
-//! and `end` states of the easing.
-//!
-//! It is possible to replace interpolation with another approach, such as a `TransformExtrapolationPlugin`,
-//! while reusing the core easing logic of the [`TransformEasingPlugin`]. An example of this can be found in
-//! `examples/extrapolation.rs`.
+//! - Granularly ease individual properties of the transform with [`TranslationInterpolation`], [`RotationInterpolation`], and [`ScaleInterpolation`].
+//! - Opt out of transform easing for individual entities with [`NoTranslationEasing`], [`NoRotationEasing`], and [`NoScaleEasing`].
+//! - Use extrapolation instead of interpolation with the [`TransformExtrapolationPlugin`] and its related components.
+//! - Use Hermite interpolation for more natural and accurate movement with the [`TransformHermitePlugin`].
+//! - Implement custom easing backends for your specific needs, similarly to how the [`TransformHermitePlugin`] is implemented.
 //!
 //! ## How Does It Work?
 //!
@@ -99,40 +95,63 @@
 //! }
 //! ```
 //!
-//! - At the start of the [`FixedFirst`] schedule, the states are reset to `None`.
-//! - In [`FixedFirst`], for every entity with the [`TranslationInterpolation`] component, `start` is set to the current [`Transform`].
-//! - In [`FixedLast`], for every entity with the [`TranslationInterpolation`] component, `end` is set to the current [`Transform`].
+//! The states are updated by the [`TransformInterpolationPlugin`] or [`TransformExtrapolationPlugin`]
+//! depending on whether the entity has [`TransformInterpolation`] or [`TransformExtrapolation`] components.
 //!
-//! This way, `start` represents the "old" state, while `end` represents the "new" state after changes have been made to [`Transform`]
-//! in between [`FixedFirst`] and [`FixedLast`]. Rotation and scale are handled similarly.
+//! If interpolation is used:
 //!
-//! The actual easing is then performed in [`PostUpdate`], before Bevy's transform propagation systems. If the [`Transform`] is detected to have changed
-//! since the last easing run but *outside* of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
+//! - In [`FixedFirst`], `start` is set to the current [`Transform`].
+//! - In [`FixedLast`], `end` is set to the current [`Transform`].
 //!
-//! Note that the core easing logic and components are intentionally not tied to interpolation directly.
-//! A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
-//! supplying its own `TranslationExtrapolation` and `RotationExtrapolation` components.
+//! If extrapolation is used:
+//!
+//! - In [`FixedLast`], `start` is set to the current [`Transform`], and `end` is set to the [`Transform`] predicted based on velocity.
+//!
+//! At the start of the [`FixedFirst`] schedule, the states are reset to `None`. If the [`Transform`] is detected to have changed
+//! since the last easing run but *outside* of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
+//!
+//! The actual easing is performed in [`PostUpdate`] in between fixed timesteps, before Bevy's transform propagation systems.
+//! By default, linear interpolation (`lerp`) is used for translation and scale, and spherical linear interpolation (`slerp`)
+//! is used for rotation.
+//!
+//! However, thanks to the modular and flexible architecture, other easing methods can also be used.
+//! The [`TransformHermitePlugin`] provides an easing backend using Hermite interpolation,
+//! overwriting the linear interpolation for specific entities with the [`NonlinearTranslationEasing`]
+//! and [`NonlinearRotationEasing`] marker components. Custom easing solutions can be implemented using the same pattern.
+//!
+//! [`TransformHermitePlugin`]: crate::hermite::TransformHermitePlugin
 
 #![allow(clippy::needless_doctest_main)]
 
+// Core interpolation and extrapolation plugins
+pub mod extrapolation;
 pub mod interpolation;
+
+// Easing backends
+// TODO: Catmull-Rom (like Hermite interpolation, but velocity is estimated from four points)
+pub mod hermite;
 
 /// The prelude.
 ///
 /// This includes the most common types in this crate, re-exported for your convenience.
 pub mod prelude {
     #[doc(hidden)]
-    pub use crate::interpolation::*;
-    #[doc(hidden)]
-    pub use crate::TransformEasingPlugin;
+    pub use crate::{
+        extrapolation::*, hermite::*, interpolation::*, NoRotationEasing, NoScaleEasing,
+        NoTransformEasing, NoTranslationEasing, TransformEasingPlugin,
+    };
 }
 
+use std::marker::PhantomData;
+
 // For doc links.
+#[allow(unused_imports)]
+use extrapolation::*;
 #[allow(unused_imports)]
 use interpolation::*;
 
 use bevy::{
-    ecs::{component::Tick, system::SystemChangeTick},
+    ecs::{component::Tick, query::QueryData, system::SystemChangeTick},
     prelude::*,
 };
 
@@ -154,6 +173,9 @@ impl Plugin for TransformEasingPlugin {
             TranslationEasingState,
             RotationEasingState,
             ScaleEasingState,
+            NoTranslationEasing,
+            NoRotationEasing,
+            NoScaleEasing,
         )>();
 
         app.init_resource::<LastEasingTick>();
@@ -231,7 +253,160 @@ pub enum TransformEasingSet {
 
 /// A resource that stores the last tick when easing was performed.
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut)]
-struct LastEasingTick(Tick);
+pub struct LastEasingTick(Tick);
+
+/// Explicitly marks this entity as having no transform easing, disabling interpolation and/or extrapolation.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component, Debug, Default)]
+#[require(NoTranslationEasing, NoRotationEasing, NoScaleEasing)]
+pub struct NoTransformEasing;
+
+/// Explicitly marks this entity as having no translation easing, disabling interpolation and/or extrapolation.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component, Debug, Default)]
+pub struct NoTranslationEasing;
+
+/// Explicitly marks this entity as having no rotation easing, disabling interpolation and/or extrapolation.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component, Debug, Default)]
+pub struct NoRotationEasing;
+
+/// Explicitly marks this entity as having no scale easing, disabling interpolation and/or extrapolation.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component, Debug, Default)]
+pub struct NoScaleEasing;
+
+/// A marker component that indicates that the entity has non-linear translation easing,
+/// and linear easing should not be applied.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component, Debug, Default)]
+pub struct NonlinearTranslationEasing;
+
+/// A marker component that indicates that the entity has non-linear rotation easing,
+/// and linear easing should not be applied.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component, Debug, Default)]
+pub struct NonlinearRotationEasing;
+
+/// A [`QueryData`] type for specifying the components that store velocity for easing.
+/// Required for [`TransformExtrapolationPlugin`] and [`TransformHermitePlugin`].
+///
+/// [`TransformExtrapolationPlugin`]: crate::extrapolation::TransformExtrapolationPlugin
+/// [`TransformHermitePlugin`]: crate::hermite::TransformHermitePlugin
+///
+/// # Example
+///
+/// ```
+/// // Velocity components
+///
+/// #[derive(Component)]
+/// struct LinearVelocity(Vec3);
+///
+/// #[derive(Component)]
+/// struct PreviousLinearVelocity(Vec3);
+///
+/// #[derive(Component)]
+/// struct AngularVelocity(Vec3);
+///
+/// #[derive(Component)]
+/// struct PreviousAngularVelocity(Vec3);
+///
+/// // Velocity source for easing that uses linear velocity
+/// #[derive(QueryData)]
+/// struct LinVelSource;
+///
+/// impl VelocitySource for LinVelSource {
+///     type Start = PreviousLinearVelocity;
+///     type End = LinearVelocity;
+///
+///     fn start(start: &Self::Start) -> Vec3 {
+///         start.0
+///     }
+///
+///     fn end(end: &Self::End) -> Vec3 {
+///         end.0
+///     }
+/// }
+///
+/// // Velocity source for easing that uses angular velocity
+/// #[derive(QueryData)]
+/// struct AngVelSource;
+///
+/// impl VelocitySource for AngVelSource {
+///     type Start = PreviousAngularVelocity;
+///     type End = AngularVelocity;
+///
+///     fn start(start: &Self::Start) -> Vec3 {
+///         start.0
+///     }
+///
+///     fn end(end: &Self::End) -> Vec3 {
+///         end.0
+///     }
+/// }
+/// ```
+///
+/// Some forms of easing such as extrapolation may not require the previous velocity.
+/// In such cases, the `Previous` component can be set to `()`, and `previous` can simply return `Vec3::ZERO`.
+pub trait VelocitySource: QueryData + Send + Sync + 'static {
+    /// The component that stores the previous velocity.
+    ///
+    /// This is not required for all easing backends, such as extrapolation.
+    /// In such cases, this can be set to `()`.
+    type Previous: Component;
+
+    /// The component that stores the current velocity.
+    type Current: Component;
+
+    /// Returns the previous velocity.
+    ///
+    /// This is not required for all easing backends, such as extrapolation.
+    /// In such cases, this can return `Vec3::ZERO`.
+    fn previous(start: &Self::Previous) -> Vec3;
+
+    /// Returns the current velocity.
+    fn current(end: &Self::Current) -> Vec3;
+}
+
+trait VelocitySourceItem<V>
+where
+    V: VelocitySource,
+{
+    fn previous(start: &V::Previous) -> Vec3;
+    fn current(end: &V::Current) -> Vec3;
+}
+
+impl<'a, V: VelocitySource> VelocitySourceItem<V> for V::Item<'a> {
+    fn previous(start: &V::Previous) -> Vec3 {
+        V::previous(start)
+    }
+
+    fn current(end: &V::Current) -> Vec3 {
+        V::current(end)
+    }
+}
+
+// Required so that `()` can be used as a "null" velocity source despite it not being a component itself.
+// This can be useful if you only want to use Hermite interpolation for rotation, for example.
+//
+// This must be public, because `VelocitySource::Start` and `VelocitySource::End` are public interfaces,
+// but you can't actually create this component since the stored value is private and there are no constructors.
+#[derive(Component)]
+#[doc(hidden)]
+pub struct DummyComponent(PhantomData<()>);
+
+impl VelocitySource for () {
+    type Previous = DummyComponent;
+    type Current = DummyComponent;
+
+    fn previous(_: &Self::Previous) -> Vec3 {
+        Vec3::ZERO
+    }
+
+    fn current(_: &Self::Current) -> Vec3 {
+        Vec3::ZERO
+    }
+}
 
 /// Stores the start and end states used for interpolating the translation of an entity.
 /// The change in translation is smoothed from `start` to `end` in between [`FixedUpdate`] runs.
@@ -373,7 +548,10 @@ fn reset_scale_easing(mut query: Query<&mut ScaleEasingState>) {
 
 /// Eases the translations of entities with linear interpolation.
 fn ease_translation_lerp(
-    mut query: Query<(&mut Transform, &TranslationEasingState)>,
+    mut query: Query<
+        (&mut Transform, &TranslationEasingState),
+        Without<NonlinearTranslationEasing>,
+    >,
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
@@ -387,7 +565,7 @@ fn ease_translation_lerp(
 
 /// Eases the rotations of entities with spherical linear interpolation.
 fn ease_rotation_slerp(
-    mut query: Query<(&mut Transform, &RotationEasingState)>,
+    mut query: Query<(&mut Transform, &RotationEasingState), Without<NonlinearRotationEasing>>,
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
