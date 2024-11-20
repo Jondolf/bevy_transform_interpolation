@@ -6,8 +6,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    RotationEasingState, TransformEasingPlugin, TransformEasingSet, TranslationEasingState,
-    VelocitySource, VelocitySourceItem,
+    NoRotationEasing, NoTranslationEasing, RotationEasingState, TransformEasingPlugin,
+    TransformEasingSet, TranslationEasingState, VelocitySource, VelocitySourceItem,
 };
 use bevy::prelude::*;
 
@@ -194,8 +194,20 @@ use bevy::prelude::*;
 /// [`TransformHermite`]: crate::hermite::TransformHermite
 #[derive(Debug)]
 pub struct TransformExtrapolationPlugin<LinVel: VelocitySource, AngVel: VelocitySource> {
+    /// If `true`, translation will be extrapolated for all entities with the [`Transform`] component by default.
+    ///
+    /// This can be overridden for individual entities by adding the [`NoTranslationEasing`] or [`NoTransformEasing`] component.
+    ///
+    /// [`NoTransformEasing`]: crate::NoTransformEasing
     pub extrapolate_translation_all: bool,
+    /// If `true`, rotation will be extrapolated for all entities with the [`Transform`] component by default.
+    ///
+    /// This can be overridden for individual entities by adding the [`NoRotationEasing`] or [`NoTransformEasing`] component.
+    ///
+    /// [`NoTransformEasing`]: crate::NoTransformEasing
     pub extrapolate_rotation_all: bool,
+    /// Phantom data use the type parameters.
+    #[doc(hidden)]
     pub _phantom: PhantomData<(LinVel, AngVel)>,
 }
 
@@ -218,7 +230,6 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> TransformExtrapolationPlugi
     /// or the individual [`NoTranslationEasing`] and [`NoRotationEasing`] components.
     ///
     /// [`NoTransformEasing`]: crate::NoTransformEasing
-    /// [`NoTranslationEasing`]: crate::NoTranslationEasing
     /// [`NoRotationEasing`]: crate::NoRotationEasing
     pub fn extrapolate_all() -> Self {
         Self {
@@ -244,7 +255,11 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
         // to match the true position from the end of the previous fixed tick.
         app.add_systems(
             FixedFirst,
-            reset_extrapolation.before(TransformEasingSet::Reset),
+            (
+                reset_translation_extrapolation,
+                reset_rotation_extrapolation,
+            )
+                .before(TransformEasingSet::Reset),
         );
 
         // Update the start and end state of the extrapolation at the end of the fixed timestep.
@@ -318,22 +333,30 @@ pub struct TranslationExtrapolation;
 #[require(RotationEasingState)]
 pub struct RotationExtrapolation;
 
-/// Resets the transform to the start of the extrapolation at the beginning of the fixed timestep
+/// Resets the translation to the start of the extrapolation at the beginning of the fixed timestep
 /// to match the true position from the end of the previous fixed tick.
-fn reset_extrapolation(
+fn reset_translation_extrapolation(
     mut query: Query<
-        (
-            &mut Transform,
-            &TranslationEasingState,
-            &RotationEasingState,
-        ),
-        With<TransformExtrapolation>,
+        (&mut Transform, &TranslationEasingState),
+        (With<TransformExtrapolation>, Without<NoTranslationEasing>),
     >,
 ) {
-    for (mut transform, translation_easing, rotation_easing) in &mut query {
+    for (mut transform, translation_easing) in &mut query {
         if let Some(start) = translation_easing.start {
             transform.translation = start;
         }
+    }
+}
+
+/// Resets the rotation to the start of the extrapolation at the beginning of the fixed timestep
+/// to match the true position from the end of the previous fixed tick.
+fn reset_rotation_extrapolation(
+    mut query: Query<
+        (&mut Transform, &RotationEasingState),
+        (With<TransformExtrapolation>, Without<NoRotationEasing>),
+    >,
+) {
+    for (mut transform, rotation_easing) in &mut query {
         if let Some(start) = rotation_easing.start {
             transform.rotation = start;
         }
@@ -344,7 +367,7 @@ fn reset_extrapolation(
 fn update_translation_extrapolation_states<V: VelocitySource>(
     mut query: Query<
         (&Transform, &mut TranslationEasingState, &V::Current),
-        With<TranslationExtrapolation>,
+        (With<TranslationExtrapolation>, Without<NoTranslationEasing>),
     >,
     time: Res<Time>,
 ) {
@@ -363,7 +386,7 @@ fn update_translation_extrapolation_states<V: VelocitySource>(
 fn update_rotation_extrapolation_states<V: VelocitySource>(
     mut query: Query<
         (&Transform, &mut RotationEasingState, &V::Current),
-        With<RotationExtrapolation>,
+        (With<RotationExtrapolation>, Without<NoRotationEasing>),
     >,
     time: Res<Time>,
 ) {

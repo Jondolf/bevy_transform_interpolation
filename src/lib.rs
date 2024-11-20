@@ -121,7 +121,9 @@
 //!
 //! [`TransformHermitePlugin`]: crate::hermite::TransformHermitePlugin
 
-#![allow(clippy::needless_doctest_main)]
+#![expect(clippy::needless_doctest_main)]
+#![expect(clippy::type_complexity)]
+#![warn(missing_docs)]
 
 // Core interpolation and extrapolation plugins
 pub mod extrapolation;
@@ -550,7 +552,10 @@ fn reset_scale_easing(mut query: Query<&mut ScaleEasingState>) {
 fn ease_translation_lerp(
     mut query: Query<
         (&mut Transform, &TranslationEasingState),
-        Without<NonlinearTranslationEasing>,
+        (
+            Without<NonlinearTranslationEasing>,
+            Without<NoTranslationEasing>,
+        ),
     >,
     time: Res<Time<Fixed>>,
 ) {
@@ -565,7 +570,10 @@ fn ease_translation_lerp(
 
 /// Eases the rotations of entities with spherical linear interpolation.
 fn ease_rotation_slerp(
-    mut query: Query<(&mut Transform, &RotationEasingState), Without<NonlinearRotationEasing>>,
+    mut query: Query<
+        (&mut Transform, &RotationEasingState),
+        (Without<NonlinearRotationEasing>, Without<NoRotationEasing>),
+    >,
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
@@ -582,7 +590,10 @@ fn ease_rotation_slerp(
 }
 
 /// Eases the scales of entities with linear interpolation.
-fn ease_scale_lerp(mut query: Query<(&mut Transform, &ScaleEasingState)>, time: Res<Time<Fixed>>) {
+fn ease_scale_lerp(
+    mut query: Query<(&mut Transform, &ScaleEasingState), Without<NoScaleEasing>>,
+    time: Res<Time<Fixed>>,
+) {
     let overstep = time.overstep_fraction();
 
     query.iter_mut().for_each(|(mut transform, interpolation)| {

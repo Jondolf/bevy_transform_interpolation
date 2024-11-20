@@ -5,8 +5,9 @@ use std::{f32::consts::TAU, marker::PhantomData};
 use bevy::prelude::*;
 
 use crate::{
-    NonlinearRotationEasing, NonlinearTranslationEasing, RotationEasingState, TransformEasingSet,
-    TranslationEasingState, VelocitySource, VelocitySourceItem,
+    NoRotationEasing, NoTranslationEasing, NonlinearRotationEasing, NonlinearTranslationEasing,
+    RotationEasingState, TransformEasingSet, TranslationEasingState, VelocitySource,
+    VelocitySourceItem,
 };
 
 /// A Hermite interpolation plugin for [`Transform`] easing.
@@ -236,12 +237,15 @@ pub struct RotationHermite;
 
 /// Eases the translations of entities with Hermite interpolation.
 fn ease_translation_hermite<V: VelocitySource>(
-    mut query: Query<(
-        &mut Transform,
-        &TranslationEasingState,
-        &V::Previous,
-        &V::Current,
-    )>,
+    mut query: Query<
+        (
+            &mut Transform,
+            &TranslationEasingState,
+            &V::Previous,
+            &V::Current,
+        ),
+        Without<NoTranslationEasing>,
+    >,
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
@@ -261,12 +265,15 @@ fn ease_translation_hermite<V: VelocitySource>(
 
 /// Eases the rotations of entities with Hermite interpolation.
 fn ease_rotation_hermite<V: VelocitySource>(
-    mut query: Query<(
-        &mut Transform,
-        &RotationEasingState,
-        &V::Previous,
-        &V::Current,
-    )>,
+    mut query: Query<
+        (
+            &mut Transform,
+            &RotationEasingState,
+            &V::Previous,
+            &V::Current,
+        ),
+        Without<NoRotationEasing>,
+    >,
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
