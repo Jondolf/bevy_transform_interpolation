@@ -317,30 +317,28 @@ pub fn reset_easing_states_on_transform_change(
             }
 
             if let Some(mut translation_easing) = translation_easing {
-                if translation_easing.end.is_some()
-                    && (transform.translation != translation_easing.start.unwrap()
-                        && transform.translation != translation_easing.end.unwrap())
+                if let (Some(start), Some(end)) = (translation_easing.start, translation_easing.end)
                 {
-                    translation_easing.start = None;
-                    translation_easing.end = None;
+                    if transform.translation != start && transform.translation != end {
+                        translation_easing.start = None;
+                        translation_easing.end = None;
+                    }
                 }
             }
             if let Some(mut rotation_easing) = rotation_easing {
-                if rotation_easing.end.is_some()
-                    && (transform.rotation != rotation_easing.start.unwrap()
-                        && transform.rotation != rotation_easing.end.unwrap())
-                {
-                    rotation_easing.start = None;
-                    rotation_easing.end = None;
+                if let (Some(start), Some(end)) = (rotation_easing.start, rotation_easing.end) {
+                    if transform.rotation != start && transform.rotation != end {
+                        rotation_easing.start = None;
+                        rotation_easing.end = None;
+                    }
                 }
             }
             if let Some(mut scale_easing) = scale_easing {
-                if scale_easing.end.is_some()
-                    && (transform.scale != scale_easing.start.unwrap()
-                        && transform.scale != scale_easing.end.unwrap())
-                {
-                    scale_easing.start = None;
-                    scale_easing.end = None;
+                if let (Some(start), Some(end)) = (scale_easing.start, scale_easing.end) {
+                    if transform.scale != start && transform.scale != end {
+                        scale_easing.start = None;
+                        scale_easing.end = None;
+                    }
                 }
             }
         },
