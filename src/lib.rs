@@ -106,8 +106,9 @@
 //! This way, `start` represents the "old" state, while `end` represents the "new" state after changes have been made to [`Transform`]
 //! in between [`FixedFirst`] and [`FixedLast`]. Rotation and scale are handled similarly.
 //!
-//! The actual easing is then performed in [`PostUpdate`], before Bevy's transform propagation systems. If the [`Transform`] is detected to have changed
-//! since the last easing run but *outside* of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
+//! The actual easing is then performed in [`RunFixedMainLoop`], right after [`FixedMain`](bevy::app::FixedMain), before [`Update`].
+//! If the [`Transform`] is detected to have changed since the last easing run but *outside* of the fixed timestep schedules,
+//! the easing is reset to `None` to prevent overwriting the change.
 //!
 //! Note that the core easing logic and components are intentionally not tied to interpolation directly.
 //! A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
@@ -167,47 +168,44 @@ impl Plugin for TransformEasingPlugin {
         // Update end values at the end of the fixed timestep.
         app.configure_sets(FixedLast, TransformEasingSet::UpdateEnd);
 
-        // Perform transform easing in `PostUpdate`, before transform propagation.
+        // Perform transform easing right after the fixed timestep, before `Update`.
         app.configure_sets(
-            PostUpdate,
+            RunFixedMainLoop,
             (
                 TransformEasingSet::Ease,
                 TransformEasingSet::UpdateEasingTick,
             )
                 .chain()
-                .before(TransformSystem::TransformPropagate),
+                .in_set(RunFixedMainLoopSystem::AfterFixedMainLoop),
         );
 
         // Reset easing states.
         app.add_systems(
             FixedFirst,
             (
-                reset_easing_states_on_transform_change,
-                (
-                    reset_translation_easing,
-                    reset_rotation_easing,
-                    reset_scale_easing,
-                ),
+                reset_translation_easing,
+                reset_rotation_easing,
+                reset_scale_easing,
             )
                 .chain()
                 .in_set(TransformEasingSet::Reset),
         );
 
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             reset_easing_states_on_transform_change.before(TransformEasingSet::Ease),
         );
 
         // Perform easing.
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
                 .in_set(TransformEasingSet::Ease),
         );
 
         // Update the last easing tick.
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             update_last_easing_tick.in_set(TransformEasingSet::UpdateEasingTick),
         );
     }
@@ -223,7 +221,7 @@ pub enum TransformEasingSet {
     /// Updates the `end` values for easing at the end of the fixed timestep.
     UpdateEnd,
     /// Eases the transform values in between the `start` and `end` states.
-    /// Runs in [`PostUpdate`], before [`TransformSystem::TransformPropagate`].
+    /// Runs in [`RunFixedMainLoop`], right after [`FixedMain`](bevy::app::FixedMain), before [`Update`].
     Ease,
     /// Updates [`LastEasingTick`], the last tick when easing was performed.
     UpdateEasingTick,
