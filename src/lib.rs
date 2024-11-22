@@ -110,7 +110,7 @@
 //! At the start of the [`FixedFirst`] schedule, the states are reset to `None`. If the [`Transform`] is detected to have changed
 //! since the last easing run but *outside* of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
 //!
-//! The actual easing is performed in [`PostUpdate`] in between fixed timesteps, before Bevy's transform propagation systems.
+//! The actual easing is performed in [`RunFixedMainLoop`], right after [`FixedMain`](bevy::app::FixedMain), before [`Update`].
 //! By default, linear interpolation (`lerp`) is used for translation and scale, and spherical linear interpolation (`slerp`)
 //! is used for rotation.
 //!
@@ -191,47 +191,44 @@ impl Plugin for TransformEasingPlugin {
         // Update end values at the end of the fixed timestep.
         app.configure_sets(FixedLast, TransformEasingSet::UpdateEnd);
 
-        // Perform transform easing in `PostUpdate`, before transform propagation.
+        // Perform transform easing right after the fixed timestep, before `Update`.
         app.configure_sets(
-            PostUpdate,
+            RunFixedMainLoop,
             (
                 TransformEasingSet::Ease,
                 TransformEasingSet::UpdateEasingTick,
             )
                 .chain()
-                .before(TransformSystem::TransformPropagate),
+                .in_set(RunFixedMainLoopSystem::AfterFixedMainLoop),
         );
 
         // Reset easing states.
         app.add_systems(
             FixedFirst,
             (
-                reset_easing_states_on_transform_change,
-                (
-                    reset_translation_easing,
-                    reset_rotation_easing,
-                    reset_scale_easing,
-                ),
+                reset_translation_easing,
+                reset_rotation_easing,
+                reset_scale_easing,
             )
                 .chain()
                 .in_set(TransformEasingSet::Reset),
         );
 
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             reset_easing_states_on_transform_change.before(TransformEasingSet::Ease),
         );
 
         // Perform easing.
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
                 .in_set(TransformEasingSet::Ease),
         );
 
         // Update the last easing tick.
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             update_last_easing_tick.in_set(TransformEasingSet::UpdateEasingTick),
         );
     }
@@ -247,7 +244,7 @@ pub enum TransformEasingSet {
     /// Updates the `end` values for easing at the end of the fixed timestep.
     UpdateEnd,
     /// Eases the transform values in between the `start` and `end` states.
-    /// Runs in [`PostUpdate`], before [`TransformSystem::TransformPropagate`].
+    /// Runs in [`RunFixedMainLoop`], right after [`FixedMain`](bevy::app::FixedMain), before [`Update`].
     Ease,
     /// Updates [`LastEasingTick`], the last tick when easing was performed.
     UpdateEasingTick,
@@ -494,30 +491,28 @@ pub fn reset_easing_states_on_transform_change(
             }
 
             if let Some(mut translation_easing) = translation_easing {
-                if translation_easing.end.is_some()
-                    && (transform.translation != translation_easing.start.unwrap()
-                        && transform.translation != translation_easing.end.unwrap())
+                if let (Some(start), Some(end)) = (translation_easing.start, translation_easing.end)
                 {
-                    translation_easing.start = None;
-                    translation_easing.end = None;
+                    if transform.translation != start && transform.translation != end {
+                        translation_easing.start = None;
+                        translation_easing.end = None;
+                    }
                 }
             }
             if let Some(mut rotation_easing) = rotation_easing {
-                if rotation_easing.end.is_some()
-                    && (transform.rotation != rotation_easing.start.unwrap()
-                        && transform.rotation != rotation_easing.end.unwrap())
-                {
-                    rotation_easing.start = None;
-                    rotation_easing.end = None;
+                if let (Some(start), Some(end)) = (rotation_easing.start, rotation_easing.end) {
+                    if transform.rotation != start && transform.rotation != end {
+                        rotation_easing.start = None;
+                        rotation_easing.end = None;
+                    }
                 }
             }
             if let Some(mut scale_easing) = scale_easing {
-                if scale_easing.end.is_some()
-                    && (transform.scale != scale_easing.start.unwrap()
-                        && transform.scale != scale_easing.end.unwrap())
-                {
-                    scale_easing.start = None;
-                    scale_easing.end = None;
+                if let (Some(start), Some(end)) = (scale_easing.start, scale_easing.end) {
+                    if transform.scale != start && transform.scale != end {
+                        scale_easing.start = None;
+                        scale_easing.end = None;
+                    }
                 }
             }
         },
