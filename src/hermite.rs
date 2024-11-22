@@ -182,7 +182,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
 
         // Perform easing.
         app.add_systems(
-            PostUpdate,
+            RunFixedMainLoop,
             (
                 ease_translation_hermite::<LinVel>,
                 ease_rotation_hermite::<AngVel>,
