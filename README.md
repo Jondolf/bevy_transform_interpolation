@@ -24,7 +24,6 @@ struct Position(Vec3);
 #[derive(Component, Deref, DerefMut)]
 struct OldPosition(Vec3);
 
-// Runs in `Update` or `PostUpdate`.
 fn interpolate_transforms(
     mut query: Query<(&mut Transform, &Position, &OldPosition)>,
     fixed_time: Res<Time<Fixed>>
@@ -158,8 +157,9 @@ pub struct TranslationEasingState {
 This way, `start` represents the "old" state, while `end` represents the "new" state after changes have been made to `Transform`
 in between `FixedFirst` and `FixedLast`. Rotation and scale are handled similarly.
 
-The easing is then performed in `PostUpdate`, before Bevy's transform propagation systems. If the `Transform` is detected to have changed
-since the last easing run but *outside* of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
+The easing is then performed in `RunFixedMainLoop`, right after `FixedMain`, before `Update`.
+If the `Transform` is detected to have changed since the last easing run but *outside*
+of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
 
 Note that the core easing logic and components are intentionally not tied to interpolation directly.
 A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
