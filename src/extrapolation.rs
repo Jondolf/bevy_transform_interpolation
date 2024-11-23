@@ -338,7 +338,7 @@ pub struct RotationExtrapolation;
 fn reset_translation_extrapolation(
     mut query: Query<
         (&mut Transform, &TranslationEasingState),
-        (With<TransformExtrapolation>, Without<NoTranslationEasing>),
+        (With<TranslationExtrapolation>, Without<NoTranslationEasing>),
     >,
 ) {
     for (mut transform, translation_easing) in &mut query {
@@ -353,7 +353,7 @@ fn reset_translation_extrapolation(
 fn reset_rotation_extrapolation(
     mut query: Query<
         (&mut Transform, &RotationEasingState),
-        (With<TransformExtrapolation>, Without<NoRotationEasing>),
+        (With<RotationExtrapolation>, Without<NoRotationEasing>),
     >,
 ) {
     for (mut transform, rotation_easing) in &mut query {
