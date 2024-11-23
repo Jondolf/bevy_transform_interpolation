@@ -1,6 +1,6 @@
 # `bevy_transform_interpolation`
 
-A general-purpose `Transform` interpolation plugin for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
+A drop-in `Transform` interpolation solution for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
 
 ## What Is This For?
 
@@ -50,7 +50,7 @@ while still allowing the usage of `Transform` for gameplay logic. It should be a
 such as [Avian](https://github.com/Jondolf/avian) and [`bevy_rapier`](https://github.com/dimforge/bevy_rapier), as long as
 the simulation is run in `FixedUpdate` or `FixedPostUpdate`.
 
-## Usage
+## Getting Started
 
 First, add `bevy_transform_interpolation` to your dependencies in `Cargo.toml`:
 
@@ -59,7 +59,7 @@ First, add `bevy_transform_interpolation` to your dependencies in `Cargo.toml`:
 bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
 ```
 
-Next, add the `TransformInterpolationPlugin`:
+To enable `Transform` interpolation, add the `TransformInterpolationPlugin` to your app:
 
 ```rust
 use bevy::prelude::*;
@@ -73,32 +73,11 @@ fn main() {
 }
 ```
 
-Transform interpolation can be enabled very granularly in `bevy_transform_interpolation`.
-You can choose to interpolate transform, rotation, or scale individually, or use any combination of them:
+By default, interpolation is only performed for entities with the `TransformInterpolation` component:
 
 ```rust
-use bevy::prelude::*;
-use bevy_transform_interpolation::prelude::*;
-
 fn setup(mut commands: Commands) {
-    // Only interpolate translation.
-    commands.spawn((Transform::default(), TranslationInterpolation));
-    
-    // Only interpolate rotation.
-    commands.spawn((Transform::default(), RotationInterpolation));
-    
-    // Only interpolate scale.
-    commands.spawn((Transform::default(), ScaleInterpolation));
-    
-    // Interpolate translation and rotation, but not scale.
-    commands.spawn((
-        Transform::default(),
-        TranslationInterpolation,
-        RotationInterpolation,
-    ));
-    
     // Interpolate the entire transform: translation, rotation, and scale.
-    // The components can be added individually, or using the `TransformInterpolation` component.
     commands.spawn((
         Transform::default(),
         TransformInterpolation,
@@ -106,37 +85,31 @@ fn setup(mut commands: Commands) {
 }
 ```
 
-You can also enable transform interpolation globally for *all* entities that have a `Transform`
-by configuring the `TransformInterpolationPlugin`:
+Now, any changes made to the `Transform` of the entity in `FixedPreUpdate`, `FixedUpdate`, or `FixedPostUpdate`
+will automatically be interpolated in between fixed timesteps.
+
+If you want *all* entities with a `Transform` to be interpolated by default, you can use
+`TransformInterpolationPlugin::interpolate_all()`:
 
 ```rust
-use bevy::prelude::*;
-use bevy_transform_interpolation::prelude::*;
-
 fn main() {
-    App::new()
-        .add_plugins((
-            DefaultPlugins,
-            // Interpolate translation and rotation, but not scale.
-            TransformInterpolationPlugin {
-                global_translation_interpolation: true,
-                global_rotation_interpolation: true,
-                global_scale_interpolation: false,
-            },
-        ))
-        // ...other plugins, resources, and systems
+    App::build()
+        .add_plugins(TransformInterpolationPlugin::interpolate_all())
+        // ...
         .run();
 }
 ```
 
-If interpolation is enabled globally, it can still be disabled for individual entities using the `NoTranslationEasing`,
-`NoRotationEasing`, and `NoScaleEasing` components.
+## Advanced Usage
 
-Now, any changes made to `Transform` in `FixedPreUpdate`, `FixedUpdate`, or `FixedPostUpdate` will automatically
-be smoothed in between the fixed timesteps for entities that have transform interpolation enabled.
+For a lot of applications, the functionality shown in the Getting Started guide might be all you need!
+However, `bevy_transform_interpolation` has a lot more to offer:
 
-Changing `Transform` manually in any schedule that *doesn't* use a fixed timestep is also supported,
-but it is equivalent to teleporting, and disables interpolation for the entity for the remainder of that fixed timestep.
+- Granularly ease individual properties of the transform with `TranslationInterpolation`, `RotationInterpolation`, and `ScaleInterpolation`.
+- Opt out of transform easing for individual entities with `NoTranslationEasing`, `NoRotationEasing`, and `NoScaleEasing`.
+- Use extrapolation instead of interpolation with the `TransformExtrapolationPlugin` and its related components.
+- Use Hermite interpolation for more natural and accurate movement with the `TransformHermiteEasingPlugin`.
+- Implement custom easing backends for your specific needs.
 
 ## How Does It Work?
 
@@ -150,20 +123,29 @@ pub struct TranslationEasingState {
 }
 ```
 
-- At the start of the `FixedFirst` schedule, the states are reset to `None`.
-- In `FixedFirst`, for every entity with the `TranslationInterpolation` component, `start` is set to the current `Transform`.
-- In `FixedLast`, for every entity with the `TranslationInterpolation` component, `end` is set to the current `Transform`.
+The states are updated by the `TransformInterpolationPlugin` or `TransformExtrapolationPlugin`
+depending on whether the entity has `TransformInterpolation` or `TransformExtrapolation` components.
 
-This way, `start` represents the "old" state, while `end` represents the "new" state after changes have been made to `Transform`
-in between `FixedFirst` and `FixedLast`. Rotation and scale are handled similarly.
+If interpolation is used:
 
-The easing is then performed in `RunFixedMainLoop`, right after `FixedMain`, before `Update`.
-If the `Transform` is detected to have changed since the last easing run but *outside*
-of the fixed timestep schedules, the easing is reset to `None` to prevent overwriting the change.
+- In `FixedFirst`, `start` is set to the current `Transform`.
+- In `FixedLast`, `end` is set to the current `Transform`.
 
-Note that the core easing logic and components are intentionally not tied to interpolation directly.
-A physics engine could implement **transform extrapolation** using velocity and the same easing functionality,
-supplying its own `TranslationExtrapolation` and `RotationExtrapolation` components.
+If extrapolation is used:
+
+- In `FixedLast`, `start` is set to the current `Transform`, and `end` is set to the `Transform` predicted based on velocity.
+
+At the start of the `FixedFirst` schedule, the states are reset to `None`. If the `Transform` is detected to have changed
+since the last easing run but *outside* of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
+
+The actual easing is performed in `RunFixedMainLoop`, right after `FixedMain`, before `Update`.
+By default, linear interpolation (`lerp`) is used for translation and scale, and spherical linear interpolation (`slerp`)
+is used for rotation.
+
+However, thanks to the modular and flexible architecture, other easing methods can also be used.
+The `TransformHermiteEasingPlugin` provides an easing backend using Hermite interpolation,
+overwriting the linear interpolation for specific entities with the `NonlinearTranslationEasing`
+and `NonlinearRotationEasing` marker components. Custom easing solutions can be implemented using the same pattern.
 
 ## License
 

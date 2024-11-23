@@ -79,7 +79,7 @@
 //! - Opt out of transform easing for individual entities with [`NoTranslationEasing`], [`NoRotationEasing`], and [`NoScaleEasing`].
 //! - Use extrapolation instead of interpolation with the [`TransformExtrapolationPlugin`] and its related components.
 //! - Use Hermite interpolation for more natural and accurate movement with the [`TransformHermiteEasingPlugin`].
-//! - Implement custom easing backends for your specific needs, similarly to how the [`TransformHermiteEasingPlugin`] is implemented.
+//! - Implement custom easing backends for your specific needs.
 //!
 //! ## How Does It Work?
 //!
