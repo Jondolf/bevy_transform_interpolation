@@ -187,11 +187,11 @@ use bevy::prelude::*;
 /// and spherical linear interpolation (`slerp`) for easing rotation.
 ///
 /// If the previous and current velocities are also available, it is possible to use *Hermite interpolation*
-/// with the [`TransformHermitePlugin`] to get smoother and more accurate easing. To enable Hermite interpolation
-/// for extrapolation, add the [`TransformHermite`] component to the entity in addition to the extrapolation components.
+/// with the [`TransformHermiteEasingPlugin`] to get smoother and more accurate easing. To enable Hermite interpolation
+/// for extrapolation, add the [`TransformHermiteEasing`] component to the entity in addition to the extrapolation components.
 ///
-/// [`TransformHermitePlugin`]: crate::hermite::TransformHermitePlugin
-/// [`TransformHermite`]: crate::hermite::TransformHermite
+/// [`TransformHermiteEasingPlugin`]: crate::hermite::TransformHermiteEasingPlugin
+/// [`TransformHermiteEasing`]: crate::hermite::TransformHermiteEasing
 #[derive(Debug)]
 pub struct TransformExtrapolationPlugin<LinVel: VelocitySource, AngVel: VelocitySource> {
     /// If `true`, translation will be extrapolated for all entities with the [`Transform`] component by default.

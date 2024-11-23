@@ -9,7 +9,7 @@
 //! - Granularly ease individual [`Transform`] properties to reduce unnecessary computation.
 //! - Apply easing to specific entities or to all entities.
 //! - Works out of the box with physics engines using fixed timesteps.
-//! - Optional [Hermite interpolation][`TransformHermitePlugin`] to produce more natural and accurate movement that considers velocity.
+//! - Optional [Hermite interpolation][`TransformHermiteEasingPlugin`] to produce more natural and accurate movement that considers velocity.
 //! - Extensible with custom easing backends.
 //!
 //! ## Getting Started
@@ -78,8 +78,8 @@
 //! - Granularly ease individual properties of the transform with [`TranslationInterpolation`], [`RotationInterpolation`], and [`ScaleInterpolation`].
 //! - Opt out of transform easing for individual entities with [`NoTranslationEasing`], [`NoRotationEasing`], and [`NoScaleEasing`].
 //! - Use extrapolation instead of interpolation with the [`TransformExtrapolationPlugin`] and its related components.
-//! - Use Hermite interpolation for more natural and accurate movement with the [`TransformHermitePlugin`].
-//! - Implement custom easing backends for your specific needs, similarly to how the [`TransformHermitePlugin`] is implemented.
+//! - Use Hermite interpolation for more natural and accurate movement with the [`TransformHermiteEasingPlugin`].
+//! - Implement custom easing backends for your specific needs, similarly to how the [`TransformHermiteEasingPlugin`] is implemented.
 //!
 //! ## How Does It Work?
 //!
@@ -115,11 +115,11 @@
 //! is used for rotation.
 //!
 //! However, thanks to the modular and flexible architecture, other easing methods can also be used.
-//! The [`TransformHermitePlugin`] provides an easing backend using Hermite interpolation,
+//! The [`TransformHermiteEasingPlugin`] provides an easing backend using Hermite interpolation,
 //! overwriting the linear interpolation for specific entities with the [`NonlinearTranslationEasing`]
 //! and [`NonlinearRotationEasing`] marker components. Custom easing solutions can be implemented using the same pattern.
 //!
-//! [`TransformHermitePlugin`]: crate::hermite::TransformHermitePlugin
+//! [`TransformHermiteEasingPlugin`]: crate::hermite::TransformHermiteEasingPlugin
 
 #![expect(clippy::needless_doctest_main)]
 #![expect(clippy::type_complexity)]
@@ -288,10 +288,10 @@ pub struct NonlinearTranslationEasing;
 pub struct NonlinearRotationEasing;
 
 /// A [`QueryData`] type for specifying the components that store velocity for easing.
-/// Required for [`TransformExtrapolationPlugin`] and [`TransformHermitePlugin`].
+/// Required for [`TransformExtrapolationPlugin`] and [`TransformHermiteEasingPlugin`].
 ///
 /// [`TransformExtrapolationPlugin`]: crate::extrapolation::TransformExtrapolationPlugin
-/// [`TransformHermitePlugin`]: crate::hermite::TransformHermitePlugin
+/// [`TransformHermiteEasingPlugin`]: crate::hermite::TransformHermiteEasingPlugin
 ///
 /// # Example
 ///

@@ -31,7 +31,7 @@ use crate::{
 /// # Usage
 ///
 /// Hermite interpolation requires velocity to produce accurate curves.
-/// Instead of providing its own velocity components, the [`TransformHermitePlugin`]
+/// Instead of providing its own velocity components, the [`TransformHermiteEasingPlugin`]
 /// lets you specify your own velocity components that you manage yourself.
 ///
 /// First, make sure you have components for the previous and current velocity, and implement
@@ -87,7 +87,7 @@ use crate::{
 /// }
 /// ```
 ///
-/// Then, add the [`TransformHermitePlugin`] to the app with the velocity sources,
+/// Then, add the [`TransformHermiteEasingPlugin`] to the app with the velocity sources,
 /// along with the [`TransformInterpolationPlugin`] and/or [`TransformExtrapolationPlugin`]:
 ///
 /// ```
@@ -99,14 +99,14 @@ use crate::{
 ///
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),
-///        TransformHermitePlugin::<LinVelSource, AngVelSource>::default(),
+///        TransformHermiteEasingPlugin::<LinVelSource, AngVelSource>::default(),
 ///    ));
 ///
 ///    // Optional: Insert velocity components automatically for entities with Hermite interpolation.
-///    app.register_required_components::<TranslationHermite, LinearVelocity>();
-///    app.register_required_components::<TranslationHermite, PreviousLinearVelocity>();
-///    app.register_required_components::<RotationHermite, AngularVelocity>();
-///    app.register_required_components::<RotationHermite, PreviousAngularVelocity>();
+///    app.register_required_components::<TranslationHermiteEasing, LinearVelocity>();
+///    app.register_required_components::<TranslationHermiteEasing, PreviousLinearVelocity>();
+///    app.register_required_components::<RotationHermiteEasing, AngularVelocity>();
+///    app.register_required_components::<RotationHermiteEasing, PreviousAngularVelocity>();
 ///
 ///    // ...
 ///
@@ -115,7 +115,7 @@ use crate::{
 /// ```
 ///
 /// Hermite interpolation can now be used for any interpolated or extrapolated entity
-/// that has the velocity components by adding the [`TransformHermite`] component:
+/// that has the velocity components by adding the [`TransformHermiteEasing`] component:
 ///
 /// ```
 /// # use bevy::prelude::*;
@@ -126,7 +126,7 @@ use crate::{
 ///     commands.spawn((
 ///         Transform::default(),
 ///         TransformInterpolation,
-///         TransformHermite,
+///         TransformHermiteEasing,
 ///     ));
 /// }
 /// ```
@@ -142,26 +142,26 @@ use crate::{
 ///     commands.spawn((
 ///         Transform::default(),
 ///         TranslationInterpolation,
-///         TranslationHermite,
+///         TranslationHermiteEasing,
 ///     ));
 ///
 ///     // Use Hermite interpolation for interpolating rotation.
 ///     commands.spawn((
 ///         Transform::default(),
 ///         RotationInterpolation,
-///         RotationHermite,
+///         RotationHermiteEasing,
 ///     ));
 /// }
 /// ```
 /// [`QueryData`]: bevy::ecs::query::QueryData
 #[derive(Debug)]
-pub struct TransformHermitePlugin<LinVel: VelocitySource, AngVel: VelocitySource>(
+pub struct TransformHermiteEasingPlugin<LinVel: VelocitySource, AngVel: VelocitySource>(
     PhantomData<LinVel>,
     PhantomData<AngVel>,
 );
 
 impl<LinVel: VelocitySource, AngVel: VelocitySource> Default
-    for TransformHermitePlugin<LinVel, AngVel>
+    for TransformHermiteEasingPlugin<LinVel, AngVel>
 {
     fn default() -> Self {
         Self(PhantomData, PhantomData)
@@ -169,16 +169,21 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Default
 }
 
 impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
-    for TransformHermitePlugin<LinVel, AngVel>
+    for TransformHermiteEasingPlugin<LinVel, AngVel>
 {
     fn build(&self, app: &mut App) {
         // Register components.
-        app.register_type::<(TransformHermite, TranslationHermite, RotationHermite)>();
+        app.register_type::<(
+            TransformHermiteEasing,
+            TranslationHermiteEasing,
+            RotationHermiteEasing,
+        )>();
 
         // Mark entities with Hermite interpolation as having nonlinear easing to disable linear easing.
         let _ = app
-            .try_register_required_components::<TranslationHermite, NonlinearTranslationEasing>();
-        let _ = app.try_register_required_components::<RotationHermite, NonlinearRotationEasing>();
+            .try_register_required_components::<TranslationHermiteEasing, NonlinearTranslationEasing>();
+        let _ = app
+            .try_register_required_components::<RotationHermiteEasing, NonlinearRotationEasing>();
 
         // Perform easing.
         app.add_systems(
@@ -192,48 +197,48 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
     }
 }
 
-/// Enables [Hermite interpolation](TransformHermitePlugin) for the easing of the [`Transform`] of an entity.
+/// Enables [Hermite interpolation](TransformHermiteEasingPlugin) for the easing of the [`Transform`] of an entity.
 /// Must be used together with either [`TransformInterpolation`] or [`TransformExtrapolation`].
 ///
 /// For the interpolation to work, the entity must have velocity components that are updated every frame,
-/// and the app must have a [`TransformHermitePlugin`] with the appropriate velocity sources added.
+/// and the app must have a [`TransformHermiteEasingPlugin`] with the appropriate velocity sources added.
 ///
-/// See the [`TransformHermitePlugin`] for more information.
+/// See the [`TransformHermiteEasingPlugin`] for more information.
 ///
 /// [`TransformInterpolation`]: crate::interpolation::TransformInterpolation
 /// [`TransformExtrapolation`]: crate::extrapolation::TransformExtrapolation
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 #[reflect(Component, Debug, Default)]
-#[require(TranslationHermite, RotationHermite)]
-pub struct TransformHermite;
+#[require(TranslationHermiteEasing, RotationHermiteEasing)]
+pub struct TransformHermiteEasing;
 
-/// Enables [Hermite interpolation](TransformHermitePlugin) for the easing of the translation of an entity.
+/// Enables [Hermite interpolation](TransformHermiteEasingPlugin) for the easing of the translation of an entity.
 /// Must be used together with [`TranslationInterpolation`] or [`TranslationExtrapolation`].
 ///
 /// For the interpolation to work, the entity must have a linear velocity component that is updated every frame,
-/// and the app must have a [`TransformHermitePlugin`] with the appropriate velocity source added.
+/// and the app must have a [`TransformHermiteEasingPlugin`] with the appropriate velocity source added.
 ///
-/// See the [`TransformHermitePlugin`] for more information.
+/// See the [`TransformHermiteEasingPlugin`] for more information.
 ///
 /// [`TranslationInterpolation`]: crate::interpolation::TranslationInterpolation
 /// [`TranslationExtrapolation`]: crate::extrapolation::TranslationExtrapolation
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 #[reflect(Component, Debug, Default)]
-pub struct TranslationHermite;
+pub struct TranslationHermiteEasing;
 
-/// Enables [Hermite interpolation](TransformHermitePlugin) for the easing of the rotation of an entity.
+/// Enables [Hermite interpolation](TransformHermiteEasingPlugin) for the easing of the rotation of an entity.
 /// Must be used together with [`RotationInterpolation`] or [`RotationExtrapolation`].
 ///
 /// For the interpolation to work, the entity must have an angular velocity component that is updated every frame,
-/// and the app must have a [`TransformHermitePlugin`] with the appropriate velocity source added.
+/// and the app must have a [`TransformHermiteEasingPlugin`] with the appropriate velocity source added.
 ///
-/// See the [`TransformHermitePlugin`] for more information.
+/// See the [`TransformHermiteEasingPlugin`] for more information.
 ///
 /// [`RotationInterpolation`]: crate::interpolation::RotationInterpolation
 /// [`RotationExtrapolation`]: crate::extrapolation::RotationExtrapolation
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 #[reflect(Component, Debug, Default)]
-pub struct RotationHermite;
+pub struct RotationHermiteEasing;
 
 /// Eases the translations of entities with Hermite interpolation.
 fn ease_translation_hermite<V: VelocitySource>(

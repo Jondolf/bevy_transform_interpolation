@@ -18,7 +18,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_transform_interpolation::{
-    hermite::{RotationHermite, TransformHermitePlugin, TranslationHermite},
+    hermite::{RotationHermiteEasing, TransformHermiteEasingPlugin, TranslationHermiteEasing},
     prelude::*,
     VelocitySource,
 };
@@ -30,18 +30,18 @@ fn main() {
     let mut app = App::new();
 
     // Add the `TransformInterpolationPlugin` to the app to enable transform interpolation.
-    // Add the `TransformHermitePlugin` to the app to enable Hermite interpolation for easing.
+    // Add the `TransformHermiteEasingPlugin` to the app to enable Hermite interpolation for easing.
     app.add_plugins((
         DefaultPlugins,
         TransformInterpolationPlugin::default(),
         // We must specify "velocity sources" to tell the plugin how to extract velocity information.
         // These are implemented below this function.
-        TransformHermitePlugin::<LinVelSource, AngVelSource>::default(),
+        TransformHermiteEasingPlugin::<LinVelSource, AngVelSource>::default(),
     ));
 
     // Optional: Make the previous velocity components required for Hermite interpolation to insert them automatically.
-    app.register_required_components::<TranslationHermite, PreviousLinearVelocity>();
-    app.register_required_components::<RotationHermite, PreviousAngularVelocity>();
+    app.register_required_components::<TranslationHermiteEasing, PreviousLinearVelocity>();
+    app.register_required_components::<RotationHermiteEasing, PreviousAngularVelocity>();
 
     // Set the fixed timestep to just 5 Hz for demonstration purposes.
     app.insert_resource(Time::<Fixed>::from_hz(5.0));
@@ -153,10 +153,10 @@ fn setup(
         Mesh2d(mesh.clone()),
         MeshMaterial2d(materials.add(Color::from(LIME_400)).clone()),
         Transform::from_xyz(-500.0, 0.0, 0.0),
-        // Note: `TransformHermite` on its own does not perform interpolation.
+        // Note: `TransformHermiteEasing` on its own does not perform interpolation.
         //       Either `TransformInterpolation` or `TransformExtrapolation` must be present.
         TransformInterpolation,
-        TransformHermite,
+        TransformHermiteEasing,
         LinearVelocity(Vec2::new(MOVEMENT_SPEED, 0.0)),
         AngularVelocity(ROTATION_SPEED),
     ));
