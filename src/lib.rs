@@ -137,10 +137,16 @@ pub mod hermite;
 ///
 /// This includes the most common types in this crate, re-exported for your convenience.
 pub mod prelude {
-    #[doc(hidden)]
+    #[doc(inline)]
     pub use crate::{
-        extrapolation::*, hermite::*, interpolation::*, NoRotationEasing, NoScaleEasing,
-        NoTransformEasing, NoTranslationEasing, TransformEasingPlugin,
+        extrapolation::*,
+        hermite::{
+            RotationHermiteEasing, TransformHermiteEasing, TransformHermiteEasingPlugin,
+            TranslationHermiteEasing,
+        },
+        interpolation::*,
+        NoRotationEasing, NoScaleEasing, NoTransformEasing, NoTranslationEasing,
+        TransformEasingPlugin,
     };
 }
 

@@ -153,6 +153,7 @@ use crate::{
 ///     ));
 /// }
 /// ```
+///
 /// [`QueryData`]: bevy::ecs::query::QueryData
 #[derive(Debug)]
 pub struct TransformHermiteEasingPlugin<LinVel: VelocitySource, AngVel: VelocitySource>(
