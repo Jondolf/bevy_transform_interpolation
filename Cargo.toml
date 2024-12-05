@@ -8,7 +8,7 @@ description = "Transform interpolation for fixed timesteps for the Bevy game eng
 documentation = "https://docs.rs/bevy_transform_interpolation"
 repository = "https://github.com/Jondolf/bevy_transform_interpolation"
 readme = "README.md"
-keywords = ["gamedev", "easing", "bevy"]
+keywords = ["gamedev", "interpolation", "easing", "bevy"]
 categories = ["game-development"]
 
 [features]
