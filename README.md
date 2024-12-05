@@ -1,5 +1,10 @@
 # `bevy_transform_interpolation`
 
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_transform_interpolation#license)
+[![ci](https://github.com/Jondolf/bevy_transform_interpolation/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/bevy_transform_interpolation/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/bevy_transform_interpolation?label=crates.io)](https://crates.io/crates/bevy_transform_interpolation)
+[![docs.rs](https://img.shields.io/docsrs/bevy_transform_interpolation?label=docs.rs)](https://docs.rs/bevy_transform_interpolation)
+
 A drop-in `Transform` interpolation solution for fixed timesteps for the [Bevy game engine](https://bevyengine.org).
 
 ## What Is This For?
@@ -56,7 +61,7 @@ First, add `bevy_transform_interpolation` to your dependencies in `Cargo.toml`:
 
 ```toml
 [dependencies]
-bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
+bevy_transform_interpolation = "0.1"
 ```
 
 To enable `Transform` interpolation, add the `TransformInterpolationPlugin` to your app:
@@ -146,6 +151,12 @@ However, thanks to the modular and flexible architecture, other easing methods c
 The `TransformHermiteEasingPlugin` provides an easing backend using Hermite interpolation,
 overwriting the linear interpolation for specific entities with the `NonlinearTranslationEasing`
 and `NonlinearRotationEasing` marker components. Custom easing solutions can be implemented using the same pattern.
+
+## Supported Bevy Versions
+
+| `bevy` | `bevy_transform_interpolation` |
+| ------ | ------------------------------ |
+| 0.15   | 0.1                            |
 
 ## License
 
