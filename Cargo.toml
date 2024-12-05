@@ -15,4 +15,14 @@ categories = ["game-development"]
 bevy = { version = "0.15", default-features = false }
 
 [dev-dependencies]
-bevy = { version = "0.15" }
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_core_pipeline",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_asset",
+    "bevy_render",
+    "bevy_sprite",
+    "default_font",
+    "bevy_winit",
+    "bevy_window",
+] }
