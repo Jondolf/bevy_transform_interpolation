@@ -98,7 +98,7 @@ If you want *all* entities with a `Transform` to be interpolated by default, you
 
 ```rust
 fn main() {
-    App::build()
+    App::new()
         .add_plugins(TransformInterpolationPlugin::interpolate_all())
         // ...
         .run();

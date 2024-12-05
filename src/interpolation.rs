@@ -74,7 +74,7 @@ use bevy::prelude::*;
 /// # use bevy_transform_interpolation::prelude::*;
 /// #
 /// fn main() {
-///    App::build()
+///    App::new()
 ///       .add_plugins(TransformInterpolationPlugin {
 ///           // Interpolate translation and rotation by default, but not scale.
 ///           interpolate_translation_all: true,

@@ -42,16 +42,16 @@ use crate::{
 /// use bevy::{ecs::query::QueryData, prelude::*};
 /// use bevy_transform_interpolation::VelocitySource;
 ///
-/// #[derive(Component)]
+/// #[derive(Component, Default)]
 /// struct PreviousLinearVelocity(Vec3);
 ///
-/// #[derive(Component)]
+/// #[derive(Component, Default)]
 /// struct PreviousAngularVelocity(Vec3);
 ///
-/// #[derive(Component)]
+/// #[derive(Component, Default)]
 /// struct LinearVelocity(Vec3);
 ///
-/// #[derive(Component)]
+/// #[derive(Component, Default)]
 /// struct AngularVelocity(Vec3);
 ///
 /// #[derive(QueryData)]
@@ -92,11 +92,56 @@ use crate::{
 /// along with the [`TransformInterpolationPlugin`] and/or [`TransformExtrapolationPlugin`]:
 ///
 /// ```
-/// use bevy::prelude::*;
-/// use bevy_transform_interpolation::prelude::*;
+/// use bevy::{ecs::query::QueryData, prelude::*};
+/// use bevy_transform_interpolation::{prelude::*, VelocitySource};
+/// #
+/// # #[derive(Component, Default)]
+/// # struct PreviousLinearVelocity(Vec3);
+/// #
+/// # #[derive(Component, Default)]
+/// # struct PreviousAngularVelocity(Vec3);
+/// #
+/// # #[derive(Component, Default)]
+/// # struct LinearVelocity(Vec3);
+/// #
+/// # #[derive(Component, Default)]
+/// # struct AngularVelocity(Vec3);
+/// #
+/// # #[derive(QueryData)]
+/// # struct LinVelSource;
+/// #
+/// # impl VelocitySource for LinVelSource {
+/// #     // Components storing the previous and current velocities.
+/// #     type Previous = PreviousLinearVelocity;
+/// #     type Current = LinearVelocity;
+/// #
+/// #     fn previous(start: &Self::Previous) -> Vec3 {
+/// #         start.0
+/// #     }
+/// #
+/// #     fn current(end: &Self::Current) -> Vec3 {
+/// #         end.0
+/// #     }
+/// # }
+/// #
+/// # #[derive(QueryData)]
+/// # struct AngVelSource;
+/// #
+/// # impl VelocitySource for AngVelSource {
+/// #     type Previous = PreviousAngularVelocity;
+/// #     type Current = AngularVelocity;
+/// #
+/// #     fn previous(start: &Self::Previous) -> Vec3 {
+/// #         start.0
+/// #     }
+/// #
+/// #     fn current(end: &Self::Current) -> Vec3 {
+/// #         end.0
+/// #     }
+/// # }
 ///
 /// fn main() {
-///    let mut app = App::build();
+///    let mut app = App::new();
 ///
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),

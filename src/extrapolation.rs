@@ -39,10 +39,10 @@ use bevy::prelude::*;
 /// use bevy::{ecs::query::QueryData, prelude::*};
 /// use bevy_transform_interpolation::VelocitySource;
 ///
-/// #[derive(Component)]
+/// #[derive(Component, Default)]
 /// struct LinearVelocity(Vec3);
 ///
-/// #[derive(Component)]
+/// #[derive(Component, Default)]
 /// struct AngularVelocity(Vec3);
 ///
 /// #[derive(QueryData)]
@@ -83,11 +83,49 @@ use bevy::prelude::*;
 /// Then, add the [`TransformExtrapolationPlugin`] to the app with the velocity sources:
 ///
 /// ```
-/// use bevy::prelude::*;
-/// use bevy_transform_interpolation::prelude::*;
+/// use bevy::{ecs::query::QueryData, prelude::*};
+/// use bevy_transform_interpolation::{prelude::*, VelocitySource};
+/// #
+/// # #[derive(Component, Default)]
+/// # struct LinearVelocity(Vec3);
+/// #
+/// # #[derive(Component, Default)]
+/// # struct AngularVelocity(Vec3);
+/// #
+/// # #[derive(QueryData)]
+/// # struct LinVelSource;
+/// #
+/// # impl VelocitySource for LinVelSource {
+/// #     type Previous = LinearVelocity;
+/// #     type Current = LinearVelocity;
+/// #
+/// #     fn previous(start: &Self::Previous) -> Vec3 {
+/// #         start.0
+/// #     }
+/// #
+/// #     fn current(end: &Self::Current) -> Vec3 {
+/// #         end.0
+/// #     }
+/// # }
+/// #
+/// # #[derive(QueryData)]
+/// # struct AngVelSource;
+/// #
+/// # impl VelocitySource for AngVelSource {
+/// #     type Previous = AngularVelocity;
+/// #     type Current = AngularVelocity;
+/// #
+/// #     fn previous(start: &Self::Previous) -> Vec3 {
+/// #         start.0
+/// #     }
+/// #
+/// #     fn current(end: &Self::Current) -> Vec3 {
+/// #         end.0
+/// #     }
+/// # }
 ///
 /// fn main() {
-///    let mut app = App::build();
+///    let mut app = App::new();
 ///
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),
@@ -147,7 +185,7 @@ use bevy::prelude::*;
 /// # use bevy_transform_interpolation::prelude::*;
 /// #
 /// fn main() {
-///    App::build()
+///    App::new()
 ///       .add_plugins(TransformExtrapolationPlugin::<LinVelSource, AngVelSource> {
 ///           // Extrapolate translation by default, but not rotation.
 ///           extrapolate_translation_all: true,

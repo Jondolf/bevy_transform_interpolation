@@ -61,7 +61,7 @@
 //! # use bevy_transform_interpolation::prelude::*;
 //! #
 //! fn main() {
-//!    App::build()
+//!    App::new()
 //!       .add_plugins(TransformInterpolationPlugin::interpolate_all())
 //!       // ...
 //!       .run();
@@ -302,6 +302,9 @@ pub struct NonlinearRotationEasing;
 /// # Example
 ///
 /// ```
+/// use bevy::{ecs::query::QueryData, prelude::*};
+/// use bevy_transform_interpolation::VelocitySource;
+///
 /// // Velocity components
 ///
 /// #[derive(Component)]
@@ -321,15 +324,15 @@ pub struct NonlinearRotationEasing;
 /// struct LinVelSource;
 ///
 /// impl VelocitySource for LinVelSource {
-///     type Start = PreviousLinearVelocity;
-///     type End = LinearVelocity;
+///     type Previous = PreviousLinearVelocity;
+///     type Current = LinearVelocity;
 ///
-///     fn start(start: &Self::Start) -> Vec3 {
-///         start.0
+///     fn previous(previous: &Self::Previous) -> Vec3 {
+///         previous.0
 ///     }
 ///
-///     fn end(end: &Self::End) -> Vec3 {
-///         end.0
+///     fn current(current: &Self::Current) -> Vec3 {
+///         current.0
 ///     }
 /// }
 ///
@@ -338,15 +341,15 @@ pub struct NonlinearRotationEasing;
 /// struct AngVelSource;
 ///
 /// impl VelocitySource for AngVelSource {
-///     type Start = PreviousAngularVelocity;
-///     type End = AngularVelocity;
+///     type Previous = PreviousAngularVelocity;
+///     type Current = AngularVelocity;
 ///
-///     fn start(start: &Self::Start) -> Vec3 {
-///         start.0
+///     fn previous(previous: &Self::Previous) -> Vec3 {
+///         previous.0
 ///     }
 ///
-///     fn end(end: &Self::End) -> Vec3 {
-///         end.0
+///     fn current(current: &Self::Current) -> Vec3 {
+///         current.0
 ///     }
 /// }
 /// ```
