@@ -381,7 +381,7 @@ where
     fn current(end: &V::Current) -> Vec3;
 }
 
-impl<'a, V: VelocitySource> VelocitySourceItem<V> for V::Item<'a> {
+impl<V: VelocitySource> VelocitySourceItem<V> for V::Item<'_> {
     fn previous(start: &V::Previous) -> Vec3 {
         V::previous(start)
     }
