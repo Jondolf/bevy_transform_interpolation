@@ -34,4 +34,5 @@ bevy = { version = "0.15", default-features = false, features = [
     "default_font",
     "bevy_winit",
     "bevy_window",
+    "x11",
 ] }
