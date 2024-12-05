@@ -419,6 +419,8 @@ impl VelocitySource for () {
 /// On its own, this component is not updated automatically. Enable an easing backend
 /// such as the [`TransformInterpolationPlugin`] to perform automatic interpolation.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default)]
 pub struct TranslationEasingState {
     /// The start translation for the interpolation.
@@ -433,6 +435,8 @@ pub struct TranslationEasingState {
 /// On its own, this component is not updated automatically. Enable an easing backend
 /// such as the [`TransformInterpolationPlugin`] to perform automatic interpolation.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default)]
 pub struct RotationEasingState {
     /// The start rotation for the interpolation.
@@ -447,6 +451,8 @@ pub struct RotationEasingState {
 /// On its own, this component is not updated automatically. Enable an easing backend
 /// such as the [`TransformInterpolationPlugin`] to perform automatic interpolation.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default)]
 pub struct ScaleEasingState {
     /// The start scale for the interpolation.
