@@ -3,6 +3,7 @@
 use std::{f32::consts::TAU, marker::PhantomData};
 
 use bevy::prelude::*;
+use ops::FloatPow;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, NonlinearRotationEasing, NonlinearTranslationEasing,
@@ -353,7 +354,7 @@ pub fn hermite_quat(qa: Quat, qb: Quat, w0: Vec3, w1: Vec3, t: f32, unwrap: bool
     let t3 = t * t2;
 
     // Cumulative Bernstein basis polynomials
-    let b1 = 1.0 - (1.0 - t).powi(3);
+    let b1 = 1.0 - (1.0 - t).cubed();
     let b2 = 3.0 * t2 - 2.0 * t3;
     let b3 = t3;
 
