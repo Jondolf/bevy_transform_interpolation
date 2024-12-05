@@ -1,23 +1,26 @@
-//! Transform extrapolation is not a built-in feature in `bevy_transform_interpolation`, because it requires velocity.
-//! However, it can be implemented in a relatively straightforward way on top of `TransformEasingPlugin`.
-//!
 //! This example showcases how `Transform` extrapolation can be used to make movement
-//! appear smooth at fixed timesteps, and how it compares to `Transform` interpolation.
+//! appear smooth at fixed timesteps.
 //!
 //! Unlike `Transform` interpolation, which eases between the previous and current positions,
 //! `Transform` extrapolation predicts future positions based on velocity. This makes movement
 //! feel more responsive than interpolation, but it also produces jumpy results when the prediction is wrong,
 //! such as when the velocity of an object suddenly changes.
+//!
+//! For an example of how transform interpolation could be used instead,
+//! see `examples/interpolation.rs`.
 
 use bevy::{
     color::palettes::{
         css::WHITE,
         tailwind::{CYAN_400, LIME_400, RED_400},
     },
+    ecs::query::QueryData,
     prelude::*,
 };
 use bevy_transform_interpolation::{
-    prelude::*, RotationEasingState, TransformEasingSet, TranslationEasingState,
+    extrapolation::{TransformExtrapolation, TransformExtrapolationPlugin},
+    prelude::*,
+    VelocitySource,
 };
 
 const MOVEMENT_SPEED: f32 = 250.0;
@@ -31,8 +34,9 @@ fn main() {
     app.add_plugins((
         DefaultPlugins,
         TransformInterpolationPlugin::default(),
-        // This is a custom plugin! See the implementation below.
-        TransformExtrapolationPlugin,
+        // We must specify "velocity sources" to tell the plugin how to extract velocity information.
+        // These are implemented below this function.
+        TransformExtrapolationPlugin::<LinVelSource, AngVelSource>::default(),
     ));
 
     // Set the fixed timestep to just 5 Hz for demonstration purposes.
@@ -60,99 +64,39 @@ struct LinearVelocity(Vec2);
 #[derive(Component, Deref, DerefMut)]
 struct AngularVelocity(f32);
 
-#[derive(Debug, Default)]
-pub struct TransformExtrapolationPlugin;
+#[derive(QueryData)]
+struct LinVelSource;
 
-impl Plugin for TransformExtrapolationPlugin {
-    fn build(&self, app: &mut App) {
-        // Reset the transform to the start of the extrapolation at the beginning of the fixed timestep
-        // to match the true position from the end of the previous fixed tick.
-        app.add_systems(
-            FixedFirst,
-            reset_extrapolation.before(TransformEasingSet::Reset),
-        );
+impl VelocitySource for LinVelSource {
+    // Components storing the previous and current velocities.
+    // Note: For extrapolation, the `Previous` component is not used, so we can make it the same as `Current`.
+    type Previous = LinearVelocity;
+    type Current = LinearVelocity;
 
-        // Update the start and end state of the extrapolation at the end of the fixed timestep.
-        app.add_systems(
-            FixedLast,
-            update_easing_states.in_set(TransformEasingSet::UpdateEnd),
-        );
+    fn previous(start: &Self::Previous) -> Vec3 {
+        start.0.extend(0.0)
     }
 
-    fn finish(&self, app: &mut App) {
-        // Add the `TransformEasingPlugin` if it hasn't been added yet.
-        // It performs the actual easing based on the start and end states set by the extrapolation.
-        if !app.is_plugin_added::<TransformEasingPlugin>() {
-            app.add_plugins(TransformEasingPlugin);
-        }
+    fn current(end: &Self::Current) -> Vec3 {
+        end.0.extend(0.0)
     }
 }
 
-/// Enables `Transform` extrapolation for an entity.
-///
-/// Only extrapolates the translation and rotation components of the transform
-/// based on the `LinearVelocity` and `AngularVelocity` components.
-#[derive(Component)]
-#[require(TranslationEasingState, RotationEasingState)]
-struct TransformExtrapolation;
+#[derive(QueryData)]
+struct AngVelSource;
 
-/// Resets the transform to the start of the extrapolation at the beginning of the fixed timestep
-/// to match the true position from the end of the previous fixed tick.
-fn reset_extrapolation(
-    mut query: Query<
-        (
-            &mut Transform,
-            &TranslationEasingState,
-            &RotationEasingState,
-        ),
-        With<TransformExtrapolation>,
-    >,
-) {
-    for (mut transform, translation_easing, rotation_easing) in &mut query {
-        if let Some(start) = translation_easing.start {
-            transform.translation = start;
-        }
-        if let Some(start) = rotation_easing.start {
-            transform.rotation = start;
-        }
+impl VelocitySource for AngVelSource {
+    type Previous = AngularVelocity;
+    type Current = AngularVelocity;
+
+    fn previous(start: &Self::Previous) -> Vec3 {
+        Vec3::Z * start.0
+    }
+
+    fn current(end: &Self::Current) -> Vec3 {
+        Vec3::Z * end.0
     }
 }
-
-/// Updates the start and end states of the extrapolation for the next fixed timestep.
-fn update_easing_states(
-    mut query: Query<
-        (
-            &Transform,
-            &mut TranslationEasingState,
-            &mut RotationEasingState,
-            &LinearVelocity,
-            &AngularVelocity,
-        ),
-        With<TransformExtrapolation>,
-    >,
-    time: Res<Time>,
-) {
-    let delta_secs = time.delta_secs();
-
-    for (transform, mut translation_easing, mut rotation_easing, lin_vel, ang_vel) in &mut query {
-        translation_easing.start = Some(transform.translation);
-        rotation_easing.start = Some(transform.rotation);
-
-        // Extrapolate the next state based on the current state and velocities.
-        let next_translation = transform.translation + lin_vel.extend(0.0) * delta_secs;
-        let next_rotation = transform.rotation * Quat::from_rotation_z(ang_vel.0 * delta_secs);
-
-        // In 3D, with a `Vec3` angular velocity, the next rotation could be computed like this:
-        //
-        // let scaled_axis = ang_vel.0 * delta_secs;
-        // let next_rotation = transform.rotation * Quat::from_scaled_axis(scaled_axis);
-
-        translation_easing.end = Some(next_translation);
-        rotation_easing.end = Some(next_rotation);
-    }
-}
-
-// The rest of the code is scene setup, and largely the same as in the `interpolation.rs` example.
 
 fn setup(
     mut commands: Commands,
