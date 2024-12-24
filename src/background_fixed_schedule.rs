@@ -1,49 +1,14 @@
 use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel};
+use bevy::ecs::world;
+use bevy::log::tracing_subscriber::fmt::time;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 use bevy::{log::trace, prelude::World, time::Time};
 use crossbeam_channel::Receiver;
 use rand::{thread_rng, Rng};
+use std::default;
 use std::slice::IterMut;
 use std::{collections::VecDeque, time::Duration};
-
-/// The linear velocity of an entity indicating its movement speed and direction.
-#[derive(Component, Debug, Clone, Deref, DerefMut)]
-pub struct LinearVelocity(pub Vec2);
-
-/// The angular velocity of an entity indicating its rotation speed.
-#[derive(Component, Debug, Clone, Deref, DerefMut)]
-pub struct AngularVelocity(pub f32);
-
-#[derive(Component, Debug, Clone)]
-pub struct ToMove;
-
-/// Flips the movement directions of objects when they reach the left or right side of the screen.
-fn flip_movement_direction(query: IterMut<(&mut Transform, &mut LinearVelocity)>) {
-    for (transform, lin_vel) in query {
-        if transform.translation.x > 500.0 && lin_vel.0.x > 0.0 {
-            lin_vel.0 = Vec2::new(-lin_vel.x.abs(), 0.0);
-        } else if transform.translation.x < -500.0 && lin_vel.0.x < 0.0 {
-            lin_vel.0 = Vec2::new(lin_vel.x.abs(), 0.0);
-        }
-    }
-}
-
-/// Moves entities based on their `LinearVelocity`.
-fn movement(query: IterMut<(&mut Transform, &mut LinearVelocity)>, delta: Duration) {
-    let delta_secs = delta.as_secs_f32();
-    for (transform, lin_vel) in query {
-        transform.translation += lin_vel.extend(0.0) * delta_secs;
-    }
-}
-
-/// Rotates entities based on their `AngularVelocity`.
-fn rotate(query: IterMut<(&mut Transform, &mut AngularVelocity)>, delta: Duration) {
-    let delta_secs = delta.as_secs_f32();
-    for (transform, ang_vel) in query {
-        transform.rotate_local_z(ang_vel.0 * delta_secs);
-    }
-}
 
 ///
 /// The task inside this component is polled by the system [`handle_tasks`].
@@ -52,19 +17,19 @@ fn rotate(query: IterMut<(&mut Transform, &mut AngularVelocity)>, delta: Duratio
 ///
 /// This component is removed when the task is done
 #[derive(Component, Debug)]
-pub struct WorkTask {
+pub struct WorkTask<T: TaskWorkerTrait + Send + Sync> {
     /// The time in seconds at which we started the simulation, as reported by the used render time [`Time::elapsed`].
     pub started_at_render_time: Duration,
     /// Amount of frames elapsed since the simulation started.
     pub update_frames_elapsed: u32,
     /// The channel end to receive the simulation result.
-    pub recv: Receiver<TaskResultRaw>,
+    pub recv: Receiver<TaskResultRaw<T>>,
 }
 
 /// The result of a task to be handled.
 #[derive(Debug, Default)]
-pub struct TaskResultRaw {
-    pub transforms: Vec<(Entity, Transform, LinearVelocity, AngularVelocity)>,
+pub struct TaskResultRaw<T: TaskWorkerTrait + Send + Sync> {
+    pub transforms: T::TaskResultPure,
     /// The duration in seconds **simulated** by the simulation.
     ///
     /// This is different from the real time it took to simulate the physics.
@@ -74,9 +39,8 @@ pub struct TaskResultRaw {
 }
 
 /// The result of a task to be handled.
-#[derive(Debug, Default)]
-pub struct TaskResult {
-    pub result: TaskResultRaw,
+pub struct TaskResult<T: TaskWorkerTrait + Send + Sync> {
+    pub result_raw: TaskResultRaw<T>,
     pub render_time_elapsed_during_the_simulation: Duration,
     /// The time at which we started the simulation, as reported by the used render time [`Time::elapsed`].
     pub started_at_render_time: Duration,
@@ -85,23 +49,26 @@ pub struct TaskResult {
 }
 
 /// The result of a task to be handled.
-#[derive(Debug, Default, Component)]
-pub struct TaskResults {
+#[derive(Default, Component)]
+pub struct TaskResults<T: TaskWorkerTrait + Send + Sync> {
     /// The results of the tasks.
     ///
     /// This is a queue because we might be spawning a new task while another has not been processed yet.
     ///
     /// To avoid overwriting the results, we keep them in a queue.
-    pub results: VecDeque<TaskResult>,
+    pub results: VecDeque<TaskResult<T>>,
 }
 
-pub struct BackgroundFixedUpdatePlugin;
+#[derive(Default)]
+pub struct BackgroundFixedUpdatePlugin<T: TaskWorkerTrait> {
+    pub phantom: std::marker::PhantomData<T>,
+}
 
-impl Plugin for BackgroundFixedUpdatePlugin {
+impl<T: TaskWorkerTrait> Plugin for BackgroundFixedUpdatePlugin<T> {
     fn build(&self, app: &mut App) {
         app.add_systems(
             bevy::app::prelude::RunFixedMainLoop, // TODO: use a specific schedule for this, à la bevy's FixedMainLoop
-            FixedMain::run_schedule,
+            FixedMain::run_schedule::<T>,
         );
 
         // this handles checking for task completion, firing writeback schedules and spawning a new task.
@@ -118,7 +85,7 @@ impl Plugin for BackgroundFixedUpdatePlugin {
         app.init_schedule(PreWriteBack);
         app.edit_schedule(WriteBack, |schedule| {
             schedule
-                .add_systems(handle_task)
+                .add_systems(handle_task::<T>)
                 .set_build_settings(ScheduleBuildSettings {
                     ambiguity_detection: LogLevel::Error,
                     ..default()
@@ -126,7 +93,7 @@ impl Plugin for BackgroundFixedUpdatePlugin {
         });
         app.edit_schedule(SpawnTask, |schedule| {
             schedule
-                .add_systems(spawn_task)
+                .add_systems((extract::<T>, spawn_task::<T>).chain())
                 .set_build_settings(ScheduleBuildSettings {
                     ambiguity_detection: LogLevel::Error,
                     ..default()
@@ -156,6 +123,29 @@ pub struct TaskToRenderTime {
 #[derive(Component, Default, Reflect, Clone)]
 pub struct Timestep {
     pub timestep: Duration,
+}
+
+/// Struct to be able to configure what the task should do.
+/// TODO: extract first, then do work.
+#[derive(Clone, Component)]
+pub struct TaskWorker<T: TaskWorkerTrait> {
+    pub worker: T,
+}
+
+pub trait TaskWorkerTrait: Clone + Send + Sync + 'static {
+    type TaskExtractedData: Clone + Send + Sync + 'static + Component;
+    type TaskResultPure: Clone + Send + Sync + 'static;
+
+    fn extract(&self, world: &mut World) -> Self::TaskExtractedData;
+
+    fn work(
+        &self,
+        data: Self::TaskExtractedData,
+        timestep: Duration,
+        substep_count: u32,
+    ) -> Self::TaskResultPure;
+
+    fn write_back(&self, result: TaskResult<Self>, world: &mut World);
 }
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -198,14 +188,17 @@ pub struct FixedMain;
 
 impl FixedMain {
     /// A system that runs the [`SingleTaskSchedule`] if the task was done.
-    pub fn run_schedule(world: &mut World, mut has_run_at_least_once: Local<bool>) {
+    pub fn run_schedule<T: TaskWorkerTrait>(
+        world: &mut World,
+        mut has_run_at_least_once: Local<bool>,
+    ) {
         if !*has_run_at_least_once {
-            world.run_system_cached(spawn_task);
+            let _ = world.run_schedule(SpawnTask);
             *has_run_at_least_once = true;
             return;
         }
         world
-            .run_system_cached(finish_task_and_store_result)
+            .run_system_cached(finish_task_and_store_result::<T>)
             .unwrap();
 
         // Compute difference between task and render time.
@@ -215,17 +208,15 @@ impl FixedMain {
         task_to_render_time.diff += clock.delta().as_secs_f64();
         if task_to_render_time.diff < timestep.timestep.as_secs_f64() {
             // Task is too far ahead, we should not read the simulation.
-            //world.run_system_cached(spawn_task);
             info!("Task is too far ahead, we should not read the simulation.");
             return;
         }
         let simulated_time = {
-            let mut query = world.query::<&TaskResults>();
+            let mut query = world.query::<&TaskResults<T>>();
             let task_result = query.single(world).results.front();
-            task_result.map(|task_result| task_result.result.simulated_time)
+            task_result.map(|task_result| task_result.result_raw.simulated_time)
         };
         let Some(simulated_time) = simulated_time else {
-            //world.run_system_cached(spawn_task);
             info!("No task result found.");
             return;
         };
@@ -270,39 +261,52 @@ impl HandleTask {
     }
 }
 
+pub fn extract<T: TaskWorkerTrait>(world: &mut World) {
+    let Ok((entity_ctx, worker)) = world
+        .query_filtered::<(Entity, &TaskWorker<T>), With<Timestep>>()
+        .get_single(&world)
+    else {
+        info!("No correct entity found.");
+        return;
+    };
+
+    let extractor = worker.worker.clone();
+    let extracted_data = extractor.extract(world);
+    world.entity_mut(entity_ctx).insert(extracted_data.clone());
+}
+
 /// This system spawns a [`WorkTask`] is none are ongoing.
 /// The task simulate computationally intensive work that potentially spans multiple frames/ticks.
 ///
 /// A separate system, [`handle_tasks`], will poll the spawned tasks on subsequent
 /// frames/ticks, and use the results to spawn cubes
-pub fn spawn_task(
+pub fn spawn_task<T: TaskWorkerTrait>(
     mut commands: Commands,
-    q_context: Query<(Entity, &TaskToRenderTime, &Timestep, Has<WorkTask>)>,
-    q_transforms: Query<(Entity, &Transform, &LinearVelocity, &AngularVelocity), With<ToMove>>,
+    q_context: Query<(
+        Entity,
+        &TaskToRenderTime,
+        &TaskWorker<T>,
+        &Timestep,
+        &T::TaskExtractedData,
+        Has<WorkTask<T>>,
+    )>,
     virtual_time: Res<Time<Virtual>>,
 ) {
-    let Ok((entity_ctx, task_to_render_time, timestep, has_work)) = q_context.get_single() else {
+    let Ok((entity_ctx, task_to_render_time, worker, timestep, extracted_data, has_work)) =
+        q_context.get_single()
+    else {
         info!("No correct entity found.");
         return;
     };
-    if has_work {
-        info!("A task is ongoing.");
-        return;
-    }
     let timestep = timestep.timestep;
 
     // TODO: tweak this on user side, to allow the simulation to catch up with the render time.
     let mut substep_count = 1;
 
-    let mut transforms_to_move: Vec<(Entity, Transform, LinearVelocity, AngularVelocity)> =
-        q_transforms
-            .iter()
-            .map(|(entity, transform, lin_vel, ang_vel)| {
-                (entity, transform.clone(), lin_vel.clone(), ang_vel.clone())
-            })
-            .collect();
     let (sender, recv) = crossbeam_channel::unbounded();
 
+    let transforms_to_move = extracted_data.clone();
+    let worker = worker.clone();
     let thread_pool = AsyncComputeTaskPool::get();
     thread_pool
         .spawn(async move {
@@ -313,38 +317,14 @@ pub fn spawn_task(
                 simulated_time
             );
             profiling::scope!("Rapier physics simulation");
-            // Simulate an expensive task
-
-            let to_simulate = simulated_time.as_millis() as u64;
-            std::thread::sleep(Duration::from_millis(thread_rng().gen_range(200..201)));
-
-            // Move entities in a fixed amount of time. The movement should appear smooth for interpolated entities.
-            flip_movement_direction(
-                transforms_to_move
-                    .iter_mut()
-                    .map(|(_, transform, lin_vel, _)| (transform, lin_vel))
-                    .collect::<Vec<_>>()
-                    .iter_mut(),
-            );
-            movement(
-                transforms_to_move
-                    .iter_mut()
-                    .map(|(_, transform, lin_vel, _)| (transform, lin_vel))
-                    .collect::<Vec<_>>()
-                    .iter_mut(),
+            let transforms_to_move =
+                worker
+                    .worker
+                    .work(transforms_to_move, timestep, substep_count);
+            let result = TaskResultRaw::<T> {
+                transforms: transforms_to_move,
                 simulated_time,
-            );
-            rotate(
-                transforms_to_move
-                    .iter_mut()
-                    .map(|(_, transform, _, ang_vel)| (transform, ang_vel))
-                    .collect::<Vec<_>>()
-                    .iter_mut(),
-                simulated_time,
-            );
-            let mut result = TaskResultRaw::default();
-            result.transforms = transforms_to_move;
-            result.simulated_time = simulated_time;
+            };
             let _ = sender.send(result);
         })
         .detach();
@@ -361,20 +341,20 @@ pub fn spawn_task(
 /// and adds a [`TaskResult`] component.
 ///
 /// This expects only 1 task at a time.
-pub(crate) fn finish_task_and_store_result(
+pub(crate) fn finish_task_and_store_result<T: TaskWorkerTrait>(
     mut commands: Commands,
     time: Res<Time<Virtual>>,
-    mut q_tasks: Query<(Entity, &mut WorkTask, &mut TaskResults)>,
+    mut q_tasks: Query<(Entity, &mut WorkTask<T>, &mut TaskResults<T>)>,
 ) {
     let Ok((e, mut task, mut results)) = q_tasks.get_single_mut() else {
         return;
     };
     task.update_frames_elapsed += 1;
 
-    let mut handle_result = |task_result: TaskResultRaw| {
-        commands.entity(e).remove::<WorkTask>();
-        results.results.push_back(TaskResult {
-            result: task_result,
+    let mut handle_result = |task_result_raw: TaskResultRaw<T>| {
+        commands.entity(e).remove::<WorkTask<T>>();
+        results.results.push_back(TaskResult::<T> {
+            result_raw: task_result_raw,
             render_time_elapsed_during_the_simulation: dbg!(time.elapsed())
                 - dbg!(task.started_at_render_time),
             started_at_render_time: task.started_at_render_time,
@@ -395,29 +375,25 @@ pub(crate) fn finish_task_and_store_result(
     }
 }
 
-pub(crate) fn handle_task(
-    mut task_results: Query<(&mut TaskResults, &mut TaskToRenderTime)>,
-    mut q_transforms: Query<(&mut Transform, &mut LinearVelocity)>,
-) {
-    for (mut results, mut task_to_render) in task_results.iter_mut() {
+pub(crate) fn handle_task<T: TaskWorkerTrait>(world: &mut World) {
+    let mut task_results =
+        world.query::<(&mut TaskResults<T>, &TaskWorker<T>, &mut TaskToRenderTime)>();
+
+    let mut tasks_to_handle = vec![];
+    for (mut results, worker, mut task_to_render) in task_results.iter_mut(world) {
         let Some(task) = results.results.pop_front() else {
             continue;
         };
+        task_to_render.last_task_frame_count = task.update_frames_elapsed;
         // Apply transform changes.
         info!(
             "handle_task: simulated_time: {:?}",
-            task.result.simulated_time
+            task.result_raw.simulated_time
         );
-        for (entity, new_transform, new_lin_vel, _) in task.result.transforms.iter() {
-            if let Ok((mut transform, mut lin_vel)) = q_transforms.get_mut(*entity) {
-                *transform = *new_transform;
-                *lin_vel = new_lin_vel.clone();
-            }
-        }
-        //let diff_this_frame = dbg!(task.render_time_elapsed_during_the_simulation.as_secs_f64())
-        //    - dbg!(task.result.simulated_time.as_secs_f64());
-        //task_to_render.diff += dbg!(diff_this_frame);
-        //task_to_render.diff += dbg!(diff_this_frame);
-        task_to_render.last_task_frame_count = task.update_frames_elapsed;
+        tasks_to_handle.push((worker.clone(), task));
+    }
+
+    for (worker, task) in tasks_to_handle {
+        worker.worker.write_back(task, world);
     }
 }

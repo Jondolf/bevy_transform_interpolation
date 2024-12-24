@@ -20,12 +20,13 @@ use bevy::{
 };
 use bevy_transform_interpolation::{
     background_fixed_schedule::{
-        AngularVelocity, BackgroundFixedUpdatePlugin, LinearVelocity, PostWriteBack, PreWriteBack,
-        TaskResults, TaskToRenderTime, Timestep, ToMove,
+        BackgroundFixedUpdatePlugin, PostWriteBack, PreWriteBack, TaskResults, TaskToRenderTime,
+        TaskWorker, Timestep,
     },
     prelude::*,
     RotationEasingState, ScaleEasingState, TransformEasingSet, TranslationEasingState,
 };
+use task_user::{AngularVelocity, LinearVelocity, TaskWorkerTraitImpl, ToMove};
 
 use std::time::Duration;
 
@@ -53,7 +54,7 @@ fn main() {
     // Add the `TransformInterpolationPlugin` to the app to enable transform interpolation.
     app.add_plugins((
         DefaultPlugins,
-        BackgroundFixedUpdatePlugin,
+        BackgroundFixedUpdatePlugin::<task_user::TaskWorkerTraitImpl>::default(),
         easing_plugin,
         interpolation_plugin,
     ));
@@ -150,7 +151,10 @@ fn setup(
         Timestep {
             timestep: Duration::from_secs_f32(0.5),
         },
-        TaskResults::default(),
+        TaskResults::<TaskWorkerTraitImpl>::default(),
+        TaskWorker {
+            worker: TaskWorkerTraitImpl {},
+        },
     ));
 
     // This entity uses transform interpolation.
@@ -282,4 +286,139 @@ fn update_diff_to_render_text(
     task_to_render: Single<&TaskToRenderTime>,
 ) {
     text.0 = format!("{:.2}", task_to_render.diff);
+}
+
+pub mod task_user {
+    use std::{slice::IterMut, time::Duration};
+
+    use bevy::prelude::*;
+    use bevy_transform_interpolation::background_fixed_schedule::TaskWorkerTrait;
+    use rand::{thread_rng, Rng};
+
+    #[derive(Debug, Clone, Default)]
+    pub struct TaskWorkerTraitImpl;
+
+    impl TaskWorkerTrait for TaskWorkerTraitImpl {
+        type TaskExtractedData = TaskExtractedData;
+        type TaskResultPure = Vec<(Entity, Transform, LinearVelocity, AngularVelocity)>;
+
+        fn work(
+            &self,
+            mut input: TaskExtractedData,
+            timestep: Duration,
+            substep_count: u32,
+        ) -> Vec<(Entity, Transform, LinearVelocity, AngularVelocity)> {
+            let simulated_time = timestep * substep_count;
+            let to_simulate = simulated_time.as_millis() as u64;
+            // Simulate an expensive task
+            std::thread::sleep(Duration::from_millis(thread_rng().gen_range(200..201)));
+
+            // Move entities in a fixed amount of time. The movement should appear smooth for interpolated entities.
+            flip_movement_direction(
+                input
+                    .data
+                    .iter_mut()
+                    .map(|(_, transform, lin_vel, _)| (transform, lin_vel))
+                    .collect::<Vec<_>>()
+                    .iter_mut(),
+            );
+            movement(
+                input
+                    .data
+                    .iter_mut()
+                    .map(|(_, transform, lin_vel, _)| (transform, lin_vel))
+                    .collect::<Vec<_>>()
+                    .iter_mut(),
+                simulated_time,
+            );
+            rotate(
+                input
+                    .data
+                    .iter_mut()
+                    .map(|(_, transform, _, ang_vel)| (transform, ang_vel))
+                    .collect::<Vec<_>>()
+                    .iter_mut(),
+                simulated_time,
+            );
+            input.data
+        }
+
+        fn extract(&self, world: &mut World) -> TaskExtractedData {
+            // TODO: use a system rather than a world.
+            let mut query = world.query_filtered::<
+                            (Entity, &Transform, &LinearVelocity, &AngularVelocity),
+                            With<ToMove>,
+                        >();
+
+            let transforms_to_move: Vec<(Entity, Transform, LinearVelocity, AngularVelocity)> =
+                query
+                    .iter(world)
+                    .map(|(entity, transform, lin_vel, ang_vel)| {
+                        (entity, transform.clone(), lin_vel.clone(), ang_vel.clone())
+                    })
+                    .collect();
+            TaskExtractedData {
+                data: transforms_to_move,
+            }
+        }
+
+        fn write_back(
+            &self,
+            result: bevy_transform_interpolation::background_fixed_schedule::TaskResult<Self>,
+            mut world: &mut World,
+        ) {
+            let mut q_transforms =
+                world.query_filtered::<(&mut Transform, &mut LinearVelocity), With<ToMove>>();
+            for (entity, new_transform, new_lin_vel, _) in result.result_raw.transforms.iter() {
+                if let Ok((mut transform, mut lin_vel)) = q_transforms.get_mut(&mut world, *entity)
+                {
+                    *transform = *new_transform;
+                    *lin_vel = new_lin_vel.clone();
+                }
+            }
+        }
+    }
+
+    #[derive(Debug, Component, Clone)]
+    pub struct TaskExtractedData {
+        pub data: Vec<(Entity, Transform, LinearVelocity, AngularVelocity)>,
+    }
+
+    /// The linear velocity of an entity indicating its movement speed and direction.
+    #[derive(Component, Debug, Clone, Deref, DerefMut)]
+    pub struct LinearVelocity(pub Vec2);
+
+    /// The angular velocity of an entity indicating its rotation speed.
+    #[derive(Component, Debug, Clone, Deref, DerefMut)]
+    pub struct AngularVelocity(pub f32);
+
+    #[derive(Component, Debug, Clone)]
+    pub struct ToMove;
+
+    /// Flips the movement directions of objects when they reach the left or right side of the screen.
+    fn flip_movement_direction(query: IterMut<(&mut Transform, &mut LinearVelocity)>) {
+        for (transform, lin_vel) in query {
+            if transform.translation.x > 500.0 && lin_vel.0.x > 0.0 {
+                lin_vel.0 = Vec2::new(-lin_vel.x.abs(), 0.0);
+            } else if transform.translation.x < -500.0 && lin_vel.0.x < 0.0 {
+                lin_vel.0 = Vec2::new(lin_vel.x.abs(), 0.0);
+            }
+        }
+    }
+
+    /// Moves entities based on their `LinearVelocity`.
+    fn movement(query: IterMut<(&mut Transform, &mut LinearVelocity)>, delta: Duration) {
+        let delta_secs = delta.as_secs_f32();
+        for (transform, lin_vel) in query {
+            transform.translation += lin_vel.extend(0.0) * delta_secs;
+        }
+    }
+
+    /// Rotates entities based on their `AngularVelocity`.
+    fn rotate(query: IterMut<(&mut Transform, &mut AngularVelocity)>, delta: Duration) {
+        let delta_secs = delta.as_secs_f32();
+        for (transform, ang_vel) in query {
+            transform.rotate_local_z(ang_vel.0 * delta_secs);
+        }
+    }
 }
