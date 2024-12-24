@@ -11,15 +11,27 @@ readme = "README.md"
 keywords = ["gamedev", "easing", "bevy"]
 categories = ["game-development"]
 
+[features]
+default = ["x11"]
+x11 = ["bevy/x11"]
+
 [dependencies]
-bevy = { version = "0.15.0-rc", default-features = false }
+bevy = { version = "0.15", default-features = false }
+crossbeam-channel = "0.5"
+profiling = "1.0"
+rand = "0.8"
 
 [dev-dependencies]
-bevy = { version = "0.15.0-rc", default-features = false, features = [
+bevy = { version = "0.15", default-features = false, features = [
     "bevy_asset",
     "bevy_render",
+    "bevy_window",
     "bevy_text",
     "bevy_ui",
     "bevy_winit",
     "default_font",
+    "bevy_gizmos",
 ] }
+crossbeam-channel = "0.5"
+profiling = "1.0"
+rand = "0.8"

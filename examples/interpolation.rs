@@ -45,14 +45,6 @@ fn main() {
     app.run();
 }
 
-/// The linear velocity of an entity indicating its movement speed and direction.
-#[derive(Component, Deref, DerefMut)]
-struct LinearVelocity(Vec2);
-
-/// The angular velocity of an entity indicating its rotation speed.
-#[derive(Component, Deref, DerefMut)]
-struct AngularVelocity(f32);
-
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,

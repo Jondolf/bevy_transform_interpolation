@@ -83,7 +83,7 @@ impl Plugin for TransformExtrapolationPlugin {
         // Add the `TransformEasingPlugin` if it hasn't been added yet.
         // It performs the actual easing based on the start and end states set by the extrapolation.
         if !app.is_plugin_added::<TransformEasingPlugin>() {
-            app.add_plugins(TransformEasingPlugin);
+            app.add_plugins(TransformEasingPlugin::default());
         }
     }
 }

@@ -5,7 +5,11 @@
 #![allow(clippy::type_complexity)]
 
 use crate::*;
-use bevy::prelude::*;
+use bevy::{
+    app::FixedMain,
+    ecs::schedule::{InternedScheduleLabel, ScheduleLabel},
+    prelude::*,
+};
 
 /// A plugin for [`Transform`] interpolation, making movement in [`FixedUpdate`] appear smooth.
 ///
@@ -104,7 +108,7 @@ use bevy::prelude::*;
 /// Because good extrapolation requires velocity, it is currently not a built-in feature for `bevy_transform_interpolation`.
 /// However, it is relatively straightforward to implement your own extrapolation system on top of the [`TransformEasingPlugin`].
 /// An example of this can be found in `examples/extrapolation.rs`.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TransformInterpolationPlugin {
     /// If `true`, translation will be interpolated for all entities with the [`Transform`] component by default.
     ///
@@ -118,6 +122,21 @@ pub struct TransformInterpolationPlugin {
     ///
     /// This can be overridden for individual entities by adding the [`NoScaleInterpolation`] or [`NoTransformInterpolation`] component.
     pub interpolate_scale_all: bool,
+
+    pub schedule_fixed_first: InternedScheduleLabel,
+    pub schedule_fixed_last: InternedScheduleLabel,
+}
+
+impl Default for TransformInterpolationPlugin {
+    fn default() -> Self {
+        Self {
+            interpolate_translation_all: false,
+            interpolate_rotation_all: false,
+            interpolate_scale_all: false,
+            schedule_fixed_first: FixedFirst.intern(),
+            schedule_fixed_last: FixedLast.intern(),
+        }
+    }
 }
 
 impl TransformInterpolationPlugin {
@@ -125,11 +144,12 @@ impl TransformInterpolationPlugin {
     ///
     /// This can be overridden for individual entities by adding the [`NoTransformInterpolation`] component,
     /// or the individual [`NoTranslationInterpolation`], [`NoRotationInterpolation`], and [`NoScaleInterpolation`] components.
-    pub const fn interpolate_all() -> Self {
+    pub fn interpolate_all() -> Self {
         Self {
             interpolate_translation_all: true,
             interpolate_rotation_all: true,
             interpolate_scale_all: true,
+            ..Default::default()
         }
     }
 }
@@ -147,7 +167,7 @@ impl Plugin for TransformInterpolationPlugin {
         )>();
 
         app.add_systems(
-            FixedFirst,
+            self.schedule_fixed_first,
             (
                 complete_translation_easing,
                 complete_rotation_easing,
@@ -156,10 +176,9 @@ impl Plugin for TransformInterpolationPlugin {
                 .chain()
                 .before(TransformEasingSet::Reset),
         );
-
         // Update the start state of the interpolation at the start of the fixed timestep.
         app.add_systems(
-            FixedFirst,
+            self.schedule_fixed_first,
             (
                 update_translation_interpolation_start,
                 update_rotation_interpolation_start,
@@ -171,7 +190,7 @@ impl Plugin for TransformInterpolationPlugin {
 
         // Update the end state of the interpolation at the end of the fixed timestep.
         app.add_systems(
-            FixedLast,
+            self.schedule_fixed_last,
             (
                 update_translation_interpolation_end,
                 update_rotation_interpolation_end,
@@ -197,7 +216,7 @@ impl Plugin for TransformInterpolationPlugin {
     fn finish(&self, app: &mut App) {
         // Add the `TransformEasingPlugin` if it hasn't been added yet.
         if !app.is_plugin_added::<TransformEasingPlugin>() {
-            app.add_plugins(TransformEasingPlugin);
+            app.add_plugins(TransformEasingPlugin::default());
         }
     }
 }
@@ -360,6 +379,8 @@ fn update_translation_interpolation_end(
 ) {
     for (transform, mut easing) in &mut query {
         easing.end = Some(transform.translation);
+        info!("update_translation_interpolation_end");
+        info!("{easing:?}");
     }
 }
 
