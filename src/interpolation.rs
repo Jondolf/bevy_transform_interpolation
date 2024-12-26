@@ -6,7 +6,6 @@
 
 use crate::*;
 use bevy::{
-    app::FixedMain,
     ecs::schedule::{InternedScheduleLabel, ScheduleLabel},
     prelude::*,
 };

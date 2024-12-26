@@ -1,13 +1,8 @@
 use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel};
-use bevy::ecs::world;
-use bevy::log::tracing_subscriber::fmt::time;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
-use bevy::{log::trace, prelude::World, time::Time};
+use bevy::{prelude::World, time::Time};
 use crossbeam_channel::Receiver;
-use rand::{thread_rng, Rng};
-use std::default;
-use std::slice::IterMut;
 use std::{collections::VecDeque, time::Duration};
 
 ///
@@ -67,7 +62,7 @@ pub struct BackgroundFixedUpdatePlugin<T: TaskWorkerTrait> {
 impl<T: TaskWorkerTrait> Plugin for BackgroundFixedUpdatePlugin<T> {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            bevy::app::prelude::RunFixedMainLoop, // TODO: use a specific schedule for this, à la bevy's FixedMainLoop
+            bevy::app::prelude::RunFixedMainLoop,
             FixedMain::run_schedule::<T>,
         );
 
@@ -120,14 +115,24 @@ pub struct TaskToRenderTime {
 }
 
 /// Difference between tasks and rendering time
-#[derive(Component, Default, Reflect, Clone)]
+#[derive(Component, Reflect, Clone)]
 pub struct Timestep {
     pub timestep: Duration,
 }
 
+impl Default for Timestep {
+    fn default() -> Self {
+        Self {
+            timestep: Duration::from_secs_f64(1.0 / 64.0),
+        }
+    }
+}
+
 /// Struct to be able to configure what the task should do.
-/// TODO: extract first, then do work.
+// TODO: This should also require `TaskResults` and `WorkTask`
+// but their type parameter not enforcing `Default`  makes the require macro fail. This should be a bevy issue.
 #[derive(Clone, Component)]
+#[require(TaskToRenderTime, Timestep)]
 pub struct TaskWorker<T: TaskWorkerTrait> {
     pub worker: T,
 }

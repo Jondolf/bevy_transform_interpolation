@@ -12,7 +12,7 @@
 
 use bevy::{
     color::palettes::{
-        css::{ORANGE, RED, WHITE},
+        css::WHITE,
         tailwind::{CYAN_400, RED_400},
     },
     ecs::schedule::ScheduleLabel,
@@ -59,8 +59,6 @@ fn main() {
         interpolation_plugin,
     ));
 
-    // Set the fixed timestep to just 5 Hz for demonstration purposes.
-
     // Setup the scene and UI, and update text in `Update`.
     app.add_systems(Startup, (setup, setup_text)).add_systems(
         bevy::app::prelude::RunFixedMainLoop,
@@ -71,8 +69,6 @@ fn main() {
         ),
     );
 
-    // This runs every frame to poll if our task was done.
-
     app.add_systems(
         bevy::app::prelude::RunFixedMainLoop,
         (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
@@ -82,6 +78,7 @@ fn main() {
     // Run the app.
     app.run();
 }
+
 /// Eases the translations of entities with linear interpolation.
 fn ease_translation_lerp(
     mut query: Query<(&mut Transform, &TranslationEasingState)>,
@@ -147,8 +144,8 @@ fn setup(
     let mesh = meshes.add(Rectangle::from_length(60.0));
 
     commands.spawn((
-        TaskToRenderTime::default(),
         Timestep {
+            // Set the fixed timestep to just 5 Hz for demonstration purposes.
             timestep: Duration::from_secs_f32(0.5),
         },
         TaskResults::<TaskWorkerTraitImpl>::default(),
@@ -293,7 +290,6 @@ pub mod task_user {
 
     use bevy::prelude::*;
     use bevy_transform_interpolation::background_fixed_schedule::TaskWorkerTrait;
-    use rand::{thread_rng, Rng};
 
     #[derive(Debug, Clone, Default)]
     pub struct TaskWorkerTraitImpl;
@@ -309,9 +305,8 @@ pub mod task_user {
             substep_count: u32,
         ) -> Vec<(Entity, Transform, LinearVelocity, AngularVelocity)> {
             let simulated_time = timestep * substep_count;
-            let to_simulate = simulated_time.as_millis() as u64;
             // Simulate an expensive task
-            std::thread::sleep(Duration::from_millis(thread_rng().gen_range(200..201)));
+            std::thread::sleep(Duration::from_millis(200));
 
             // Move entities in a fixed amount of time. The movement should appear smooth for interpolated entities.
             flip_movement_direction(
