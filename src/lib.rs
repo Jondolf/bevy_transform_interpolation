@@ -372,7 +372,6 @@ pub fn reset_easing_states_on_transform_change(
 /// Resets the `start` and `end` states for translation interpolation.
 fn reset_translation_easing(mut query: Query<&mut TranslationEasingState>) {
     for mut easing in &mut query {
-        info!("reset_translation_easing");
         easing.start = None;
         easing.end = None;
     }
@@ -400,10 +399,8 @@ fn ease_translation_lerp(
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
-    info!("ease_translation_lerp; overstep: {:?}", overstep);
     query.iter_mut().for_each(|(mut transform, interpolation)| {
         if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
-            info!("{:?} - {:?}", start, end);
             transform.translation = start.lerp(end, overstep.min(1.0));
         }
     });

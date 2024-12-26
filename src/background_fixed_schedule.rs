@@ -208,7 +208,6 @@ impl FixedMain {
         task_to_render_time.diff += clock.delta().as_secs_f64();
         if task_to_render_time.diff < timestep.timestep.as_secs_f64() {
             // Task is too far ahead, we should not read the simulation.
-            info!("Task is too far ahead, we should not read the simulation.");
             return;
         }
         let simulated_time = {
@@ -217,7 +216,6 @@ impl FixedMain {
             task_result.map(|task_result| task_result.result_raw.simulated_time)
         };
         let Some(simulated_time) = simulated_time else {
-            info!("No task result found.");
             return;
         };
         let mut query = world.query::<&mut TaskToRenderTime>();
@@ -225,17 +223,7 @@ impl FixedMain {
         task_to_render_time.diff -= simulated_time.as_secs_f64();
         let _ = world.try_schedule_scope(FixedMain, |world, schedule| {
             // Advance simulation.
-            info!("Running FixedMain schedule");
             schedule.run(world);
-
-            // If physics is paused, reset delta time to stop simulation
-            // unless users manually advance `Time<Physics>`.
-            /*if is_paused {
-                world
-                    .resource_mut::<Time<Physics>>()
-                    .advance_by(Duration::ZERO);
-            }
-            */
         });
     }
 }
@@ -282,26 +270,16 @@ pub fn extract<T: TaskWorkerTrait>(world: &mut World) {
 /// frames/ticks, and use the results to spawn cubes
 pub fn spawn_task<T: TaskWorkerTrait>(
     mut commands: Commands,
-    q_context: Query<(
-        Entity,
-        &TaskToRenderTime,
-        &TaskWorker<T>,
-        &Timestep,
-        &T::TaskExtractedData,
-        Has<WorkTask<T>>,
-    )>,
+    q_context: Query<(Entity, &TaskWorker<T>, &Timestep, &T::TaskExtractedData)>,
     virtual_time: Res<Time<Virtual>>,
 ) {
-    let Ok((entity_ctx, task_to_render_time, worker, timestep, extracted_data, has_work)) =
-        q_context.get_single()
-    else {
-        info!("No correct entity found.");
+    let Ok((entity_ctx, worker, timestep, extracted_data)) = q_context.get_single() else {
         return;
     };
     let timestep = timestep.timestep;
 
     // TODO: tweak this on user side, to allow the simulation to catch up with the render time.
-    let mut substep_count = 1;
+    let substep_count = 1;
 
     let (sender, recv) = crossbeam_channel::unbounded();
 
@@ -311,11 +289,6 @@ pub fn spawn_task<T: TaskWorkerTrait>(
     thread_pool
         .spawn(async move {
             let simulated_time = timestep * substep_count;
-
-            info!(
-                "Let's spawn a simulation task for time: {:?}",
-                simulated_time
-            );
             profiling::scope!("Rapier physics simulation");
             let transforms_to_move =
                 worker
@@ -355,12 +328,10 @@ pub(crate) fn finish_task_and_store_result<T: TaskWorkerTrait>(
         commands.entity(e).remove::<WorkTask<T>>();
         results.results.push_back(TaskResult::<T> {
             result_raw: task_result_raw,
-            render_time_elapsed_during_the_simulation: dbg!(time.elapsed())
-                - dbg!(task.started_at_render_time),
+            render_time_elapsed_during_the_simulation: time.elapsed() - task.started_at_render_time,
             started_at_render_time: task.started_at_render_time,
             update_frames_elapsed: task.update_frames_elapsed,
         });
-        info!("Task finished!");
     };
     // TODO: configure this somehow.
     if task.update_frames_elapsed > 60 {
@@ -386,10 +357,6 @@ pub(crate) fn handle_task<T: TaskWorkerTrait>(world: &mut World) {
         };
         task_to_render.last_task_frame_count = task.update_frames_elapsed;
         // Apply transform changes.
-        info!(
-            "handle_task: simulated_time: {:?}",
-            task.result_raw.simulated_time
-        );
         tasks_to_handle.push((worker.clone(), task));
     }
 
