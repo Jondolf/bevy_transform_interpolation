@@ -601,6 +601,7 @@ fn ease_translation_lerp(
     time: Res<Time<Fixed>>,
 ) {
     let overstep = time.overstep_fraction();
+
     query.iter_mut().for_each(|(mut transform, interpolation)| {
         if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
             transform.translation = start.lerp(end, overstep.min(1.0));

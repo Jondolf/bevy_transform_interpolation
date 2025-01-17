@@ -331,8 +331,6 @@ fn update_translation_interpolation_end(
 ) {
     for (transform, mut easing) in &mut query {
         easing.end = Some(transform.translation);
-        info!("update_translation_interpolation_end");
-        info!("{easing:?}");
     }
 }
 
