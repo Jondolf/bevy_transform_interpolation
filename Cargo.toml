@@ -4,35 +4,35 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
-description = "A general-purpose transform interpolation plugin for fixed timesteps for the Bevy game engine"
+description = "Transform interpolation for fixed timesteps for the Bevy game engine"
 documentation = "https://docs.rs/bevy_transform_interpolation"
 repository = "https://github.com/Jondolf/bevy_transform_interpolation"
 readme = "README.md"
-keywords = ["gamedev", "easing", "bevy"]
+keywords = ["gamedev", "interpolation", "easing", "bevy"]
 categories = ["game-development"]
 
 [features]
-default = ["x11"]
-x11 = ["bevy/x11"]
+default = []
+
+# Enable data serialization/deserialization using `serde`.
+serialize = ["dep:serde", "bevy/serialize"]
 
 [dependencies]
 bevy = { version = "0.15", default-features = false }
-crossbeam-channel = "0.5"
-profiling = "1.0"
-rand = "0.8"
-dyn-clone = "1.0"
+
+# Serialization
+serde = { version = "1.0", default-features = false, optional = true }
 
 [dev-dependencies]
 bevy = { version = "0.15", default-features = false, features = [
-    "bevy_asset",
-    "bevy_render",
-    "bevy_window",
+    "bevy_core_pipeline",
     "bevy_text",
     "bevy_ui",
-    "bevy_winit",
+    "bevy_asset",
+    "bevy_render",
+    "bevy_sprite",
     "default_font",
-    "bevy_gizmos",
+    "bevy_winit",
+    "bevy_window",
+    "x11",
 ] }
-crossbeam-channel = "0.5"
-profiling = "1.0"
-rand = "0.8"
