@@ -58,11 +58,12 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
+//! # use bevy::time::TimePlugin;
 //! # use bevy_transform_interpolation::prelude::*;
 //! #
 //! fn main() {
 //!    App::new()
-//!       .add_plugins(TransformInterpolationPlugin::interpolate_all())
+//!       .add_plugins((TimePlugin, TransformInterpolationPlugin::interpolate_all()))
 //!       // ...
 //!       .run();
 //! }
@@ -159,7 +160,12 @@ use extrapolation::*;
 use interpolation::*;
 
 use bevy::{
-    ecs::{component::Tick, query::QueryData, system::SystemChangeTick},
+    ecs::{
+        component::Tick,
+        query::QueryData,
+        schedule::{InternedScheduleLabel, InternedSystemSet, ScheduleLabel},
+        system::SystemChangeTick,
+    },
     prelude::*,
 };
 
@@ -171,8 +177,31 @@ use bevy::{
 ///
 /// To actually perform automatic easing, an easing backend that updates the `start` and `end` states must be used.
 /// The [`TransformInterpolationPlugin`] is provided for transform interpolation, but custom backends can also be implemented.
-#[derive(Debug, Default)]
-pub struct TransformEasingPlugin;
+#[derive(Debug)]
+pub struct TransformEasingPlugin {
+    /// The schedule which runs at the start of an executed fixed timestep, defaults to [`FixedFirst`].
+    pub schedule_fixed_first: InternedScheduleLabel,
+    /// The schedule which runs at the end of an executed fixed timestep, defaults to [`FixedLast`].
+    pub schedule_fixed_last: InternedScheduleLabel,
+    /// The schedule which runs each frame, during the fixed timestep logic, defaults to [`RunFixedMainLoop`].
+    pub schedule_fixed_loop: InternedScheduleLabel,
+    /// The schedule which runs each frame, after the fixed timestep logic, defaults to [`RunFixedMainLoopSystem::AfterFixedMainLoop`].
+    pub after_fixed_main_loop: InternedSystemSet,
+    /// If set to `true`, the plugin adds systems to update the easing values in [`TransformEasingSet::Ease`].
+    pub update_easing_values: bool,
+}
+
+impl Default for TransformEasingPlugin {
+    fn default() -> Self {
+        Self {
+            schedule_fixed_first: FixedFirst.intern(),
+            schedule_fixed_last: FixedLast.intern(),
+            schedule_fixed_loop: RunFixedMainLoop.intern(),
+            after_fixed_main_loop: RunFixedMainLoopSystem::AfterFixedMainLoop.intern(),
+            update_easing_values: true,
+        }
+    }
+}
 
 impl Plugin for TransformEasingPlugin {
     fn build(&self, app: &mut App) {
@@ -190,27 +219,27 @@ impl Plugin for TransformEasingPlugin {
 
         // Reset easing states and update start values at the start of the fixed timestep.
         app.configure_sets(
-            FixedFirst,
+            self.schedule_fixed_first,
             (TransformEasingSet::Reset, TransformEasingSet::UpdateStart).chain(),
         );
 
         // Update end values at the end of the fixed timestep.
-        app.configure_sets(FixedLast, TransformEasingSet::UpdateEnd);
+        app.configure_sets(self.schedule_fixed_last, TransformEasingSet::UpdateEnd);
 
         // Perform transform easing right after the fixed timestep, before `Update`.
         app.configure_sets(
-            RunFixedMainLoop,
+            self.schedule_fixed_loop,
             (
                 TransformEasingSet::Ease,
                 TransformEasingSet::UpdateEasingTick,
             )
                 .chain()
-                .in_set(RunFixedMainLoopSystem::AfterFixedMainLoop),
+                .in_set(self.after_fixed_main_loop),
         );
 
         // Reset easing states.
         app.add_systems(
-            FixedFirst,
+            self.schedule_fixed_first,
             (
                 reset_translation_easing,
                 reset_rotation_easing,
@@ -221,20 +250,22 @@ impl Plugin for TransformEasingPlugin {
         );
 
         app.add_systems(
-            RunFixedMainLoop,
+            self.schedule_fixed_loop,
             reset_easing_states_on_transform_change.before(TransformEasingSet::Ease),
         );
 
-        // Perform easing.
-        app.add_systems(
-            RunFixedMainLoop,
-            (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
-                .in_set(TransformEasingSet::Ease),
-        );
+        if self.update_easing_values {
+            // Perform easing.
+            app.add_systems(
+                self.schedule_fixed_loop,
+                (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
+                    .in_set(TransformEasingSet::Ease),
+            );
+        }
 
         // Update the last easing tick.
         app.add_systems(
-            RunFixedMainLoop,
+            self.schedule_fixed_loop,
             update_last_easing_tick.in_set(TransformEasingSet::UpdateEasingTick),
         );
     }

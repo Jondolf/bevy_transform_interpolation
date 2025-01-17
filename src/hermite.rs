@@ -92,7 +92,7 @@ use crate::{
 /// along with the [`TransformInterpolationPlugin`] and/or [`TransformExtrapolationPlugin`]:
 ///
 /// ```
-/// use bevy::{ecs::query::QueryData, prelude::*};
+/// use bevy::{ecs::query::QueryData, time::TimePlugin, prelude::*};
 /// use bevy_transform_interpolation::{prelude::*, VelocitySource};
 /// #
 /// # #[derive(Component, Default)]
@@ -144,6 +144,7 @@ use crate::{
 ///    let mut app = App::new();
 ///
 ///     app.add_plugins((
+///        TimePlugin,
 ///        TransformInterpolationPlugin::default(),
 ///        TransformHermiteEasingPlugin::<LinVelSource, AngVelSource>::default(),
 ///    ));

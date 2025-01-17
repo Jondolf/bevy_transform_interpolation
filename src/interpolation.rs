@@ -8,7 +8,10 @@
 use crate::{
     prelude::*, RotationEasingState, ScaleEasingState, TransformEasingSet, TranslationEasingState,
 };
-use bevy::prelude::*;
+use bevy::{
+    ecs::schedule::{InternedScheduleLabel, ScheduleLabel},
+    prelude::*,
+};
 
 /// A plugin for [`Transform`] interpolation, making movement in [`FixedUpdate`] appear smooth.
 ///
@@ -80,6 +83,7 @@ use bevy::prelude::*;
 ///           interpolate_translation_all: true,
 ///           interpolate_rotation_all: true,
 ///           interpolate_scale_all: false,
+///           ..Default::default()
 ///       })
 ///       // ...
 ///       .run();
@@ -115,7 +119,7 @@ use bevy::prelude::*;
 /// If the previous and current velocities are also available, it is possible to use [Hermite interpolation]
 /// with the [`TransformHermiteEasingPlugin`] to get smoother and more accurate easing. To enable Hermite interpolation,
 /// add the [`TransformHermiteEasing`] component to the entity in addition to the core interpolation components.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TransformInterpolationPlugin {
     /// If `true`, translation will be interpolated for all entities with the [`Transform`] component by default.
     ///
@@ -129,6 +133,23 @@ pub struct TransformInterpolationPlugin {
     ///
     /// This can be overridden for individual entities by adding the [`NoScaleEasing`] or [`NoTransformEasing`] component.
     pub interpolate_scale_all: bool,
+
+    /// The schedule which runs at the start of an executed fixed timestep, defaults to [`FixedFirst`].
+    pub schedule_fixed_first: InternedScheduleLabel,
+    /// The schedule which runs at the end of an executed fixed timestep, defaults to [`FixedLast`].
+    pub schedule_fixed_last: InternedScheduleLabel,
+}
+
+impl Default for TransformInterpolationPlugin {
+    fn default() -> Self {
+        Self {
+            interpolate_translation_all: false,
+            interpolate_rotation_all: false,
+            interpolate_scale_all: false,
+            schedule_fixed_first: FixedFirst.intern(),
+            schedule_fixed_last: FixedLast.intern(),
+        }
+    }
 }
 
 impl TransformInterpolationPlugin {
@@ -136,11 +157,12 @@ impl TransformInterpolationPlugin {
     ///
     /// This can be overridden for individual entities by adding the [`NoTransformEasing`] component,
     /// or the individual [`NoTranslationEasing`], [`NoRotationEasing`], and [`NoScaleEasing`] components.
-    pub const fn interpolate_all() -> Self {
+    pub fn interpolate_all() -> Self {
         Self {
             interpolate_translation_all: true,
             interpolate_rotation_all: true,
             interpolate_scale_all: true,
+            ..Default::default()
         }
     }
 }
@@ -155,7 +177,7 @@ impl Plugin for TransformInterpolationPlugin {
         )>();
 
         app.add_systems(
-            FixedFirst,
+            self.schedule_fixed_first,
             (
                 complete_translation_easing,
                 complete_rotation_easing,
@@ -164,10 +186,9 @@ impl Plugin for TransformInterpolationPlugin {
                 .chain()
                 .before(TransformEasingSet::Reset),
         );
-
         // Update the start state of the interpolation at the start of the fixed timestep.
         app.add_systems(
-            FixedFirst,
+            self.schedule_fixed_first,
             (
                 update_translation_interpolation_start,
                 update_rotation_interpolation_start,
@@ -179,7 +200,7 @@ impl Plugin for TransformInterpolationPlugin {
 
         // Update the end state of the interpolation at the end of the fixed timestep.
         app.add_systems(
-            FixedLast,
+            self.schedule_fixed_last,
             (
                 update_translation_interpolation_end,
                 update_rotation_interpolation_end,
@@ -205,7 +226,7 @@ impl Plugin for TransformInterpolationPlugin {
     fn finish(&self, app: &mut App) {
         // Add the `TransformEasingPlugin` if it hasn't been added yet.
         if !app.is_plugin_added::<TransformEasingPlugin>() {
-            app.add_plugins(TransformEasingPlugin);
+            app.add_plugins(TransformEasingPlugin::default());
         }
     }
 }

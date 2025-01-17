@@ -83,7 +83,7 @@ use bevy::prelude::*;
 /// Then, add the [`TransformExtrapolationPlugin`] to the app with the velocity sources:
 ///
 /// ```
-/// use bevy::{ecs::query::QueryData, prelude::*};
+/// use bevy::{ecs::query::QueryData, time::TimePlugin, prelude::*};
 /// use bevy_transform_interpolation::{prelude::*, VelocitySource};
 /// #
 /// # #[derive(Component, Default)]
@@ -128,6 +128,7 @@ use bevy::prelude::*;
 ///    let mut app = App::new();
 ///
 ///     app.add_plugins((
+///        TimePlugin,
 ///        TransformInterpolationPlugin::default(),
 ///        TransformExtrapolationPlugin::<LinVelSource, AngVelSource>::default(),
 ///    ));
@@ -324,7 +325,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
         // Add the `TransformEasingPlugin` if it hasn't been added yet.
         // It performs the actual easing based on the start and end states set by the extrapolation.
         if !app.is_plugin_added::<TransformEasingPlugin>() {
-            app.add_plugins(TransformEasingPlugin);
+            app.add_plugins(TransformEasingPlugin::default());
         }
     }
 }
