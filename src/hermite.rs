@@ -146,7 +146,7 @@ use crate::{
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),
 ///        TransformHermiteEasingPlugin::<LinVelSource, AngVelSource>::default(),
-/// #      TimePlugin::default(),
+/// #      bevy::time::TimePlugin::default(),
 ///    ));
 ///
 ///    // Optional: Insert velocity components automatically for entities with Hermite interpolation.

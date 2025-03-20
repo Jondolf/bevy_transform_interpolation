@@ -130,7 +130,7 @@ use bevy::prelude::*;
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),
 ///        TransformExtrapolationPlugin::<LinVelSource, AngVelSource>::default(),
-/// #      TimePlugin::default(),
+/// #      bevy::time::TimePlugin::default(),
 ///    ));
 ///
 ///    // Optional: Insert velocity components automatically for entities with extrapolation.

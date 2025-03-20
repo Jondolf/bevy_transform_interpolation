@@ -63,7 +63,7 @@
 //! fn main() {
 //!    App::new()
 //!       .add_plugins(TransformInterpolationPlugin::interpolate_all())
-//! #     .add_plugins(TimePlugin::default())
+//! #     .add_plugins(bevy::time::TimePlugin::default())
 //!       // ...
 //!       .run();
 //! }
