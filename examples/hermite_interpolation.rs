@@ -24,7 +24,7 @@ use bevy_transform_interpolation::{
 };
 
 const MOVEMENT_SPEED: f32 = 250.0;
-const ROTATION_SPEED: f32 = std::f32::consts::TAU * 3.0;
+const ROTATION_SPEED: f32 = core::f32::consts::TAU * 3.0;
 
 fn main() {
     let mut app = App::new();

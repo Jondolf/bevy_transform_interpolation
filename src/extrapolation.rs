@@ -3,7 +3,7 @@
 //!
 //! See the [`TransformExtrapolationPlugin`] for more information.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, RotationEasingState, TransformEasingPlugin,
@@ -82,7 +82,7 @@ use bevy::prelude::*;
 ///
 /// Then, add the [`TransformExtrapolationPlugin`] to the app with the velocity sources:
 ///
-/// ```
+/// ```no_run
 /// use bevy::{ecs::query::QueryData, prelude::*};
 /// use bevy_transform_interpolation::{prelude::*, VelocitySource};
 /// #
@@ -130,6 +130,7 @@ use bevy::prelude::*;
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),
 ///        TransformExtrapolationPlugin::<LinVelSource, AngVelSource>::default(),
+/// #      bevy::time::TimePlugin::default(),
 ///    ));
 ///
 ///    // Optional: Insert velocity components automatically for entities with extrapolation.

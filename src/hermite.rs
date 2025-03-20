@@ -1,6 +1,6 @@
 //! Hermite interpolation for [`Transform`] easing.
 
-use std::{f32::consts::TAU, marker::PhantomData};
+use core::{f32::consts::TAU, marker::PhantomData};
 
 use bevy::prelude::*;
 use ops::FloatPow;
@@ -91,7 +91,7 @@ use crate::{
 /// Then, add the [`TransformHermiteEasingPlugin`] to the app with the velocity sources,
 /// along with the [`TransformInterpolationPlugin`] and/or [`TransformExtrapolationPlugin`]:
 ///
-/// ```
+/// ```no_run
 /// use bevy::{ecs::query::QueryData, prelude::*};
 /// use bevy_transform_interpolation::{prelude::*, VelocitySource};
 /// #
@@ -146,6 +146,7 @@ use crate::{
 ///     app.add_plugins((
 ///        TransformInterpolationPlugin::default(),
 ///        TransformHermiteEasingPlugin::<LinVelSource, AngVelSource>::default(),
+/// #      bevy::time::TimePlugin::default(),
 ///    ));
 ///
 ///    // Optional: Insert velocity components automatically for entities with Hermite interpolation.

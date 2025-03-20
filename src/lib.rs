@@ -56,13 +56,14 @@
 //! If you want *all* entities with a [`Transform`] to be interpolated by default, you can use
 //! [`TransformInterpolationPlugin::interpolate_all()`]:
 //!
-//! ```
+//! ```no_run
 //! # use bevy::prelude::*;
 //! # use bevy_transform_interpolation::prelude::*;
 //! #
 //! fn main() {
 //!    App::new()
 //!       .add_plugins(TransformInterpolationPlugin::interpolate_all())
+//! #     .add_plugins(bevy::time::TimePlugin::default())
 //!       // ...
 //!       .run();
 //! }
@@ -121,6 +122,7 @@
 //!
 //! [`TransformHermiteEasingPlugin`]: crate::hermite::TransformHermiteEasingPlugin
 
+#![no_std]
 #![expect(clippy::needless_doctest_main)]
 #![expect(clippy::type_complexity)]
 #![warn(missing_docs)]
@@ -150,7 +152,7 @@ pub mod prelude {
     };
 }
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 // For doc links.
 #[allow(unused_imports)]
