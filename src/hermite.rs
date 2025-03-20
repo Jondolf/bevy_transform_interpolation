@@ -1,6 +1,6 @@
 //! Hermite interpolation for [`Transform`] easing.
 
-use std::{f32::consts::TAU, marker::PhantomData};
+use core::{f32::consts::TAU, marker::PhantomData};
 
 use bevy::prelude::*;
 use ops::FloatPow;

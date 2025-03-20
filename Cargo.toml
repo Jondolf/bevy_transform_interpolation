@@ -12,19 +12,25 @@ keywords = ["gamedev", "interpolation", "easing", "bevy"]
 categories = ["game-development"]
 
 [features]
-default = []
+default = ["std"]
+
+# Enable the Rust standard library.
+std = ["bevy/std"]
+
+# Enable `libm` math operations for `no_std` environments and cross-platform determinism.
+libm = ["bevy/libm"]
 
 # Enable data serialization/deserialization using `serde`.
 serialize = ["dep:serde", "bevy/serialize"]
 
 [dependencies]
-bevy = { version = "0.15", default-features = false }
+bevy = { version = "0.16.0-rc.1", default-features = false }
 
 # Serialization
 serde = { version = "1.0", default-features = false, optional = true }
 
 [dev-dependencies]
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16.0-rc.1", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_text",
     "bevy_ui",
@@ -36,3 +42,8 @@ bevy = { version = "0.15", default-features = false, features = [
     "bevy_window",
     "x11",
 ] }
+
+[lints.clippy]
+std_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+alloc_instead_of_core = "warn"

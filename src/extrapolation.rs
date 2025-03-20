@@ -3,7 +3,7 @@
 //!
 //! See the [`TransformExtrapolationPlugin`] for more information.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, RotationEasingState, TransformEasingPlugin,

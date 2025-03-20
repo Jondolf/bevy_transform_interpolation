@@ -121,9 +121,15 @@
 //!
 //! [`TransformHermiteEasingPlugin`]: crate::hermite::TransformHermiteEasingPlugin
 
+#![no_std]
 #![expect(clippy::needless_doctest_main)]
 #![expect(clippy::type_complexity)]
 #![warn(missing_docs)]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+extern crate alloc;
 
 // Core interpolation and extrapolation plugins
 pub mod extrapolation;
@@ -150,7 +156,7 @@ pub mod prelude {
     };
 }
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 // For doc links.
 #[allow(unused_imports)]
