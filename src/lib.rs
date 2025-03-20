@@ -56,13 +56,14 @@
 //! If you want *all* entities with a [`Transform`] to be interpolated by default, you can use
 //! [`TransformInterpolationPlugin::interpolate_all()`]:
 //!
-//! ```
+//! ```no_run
 //! # use bevy::prelude::*;
 //! # use bevy_transform_interpolation::prelude::*;
 //! #
 //! fn main() {
 //!    App::new()
 //!       .add_plugins(TransformInterpolationPlugin::interpolate_all())
+//! #     .add_plugins(TimePlugin::default())
 //!       // ...
 //!       .run();
 //! }
