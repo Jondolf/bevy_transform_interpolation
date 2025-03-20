@@ -126,11 +126,6 @@
 #![expect(clippy::type_complexity)]
 #![warn(missing_docs)]
 
-#[cfg(feature = "std")]
-extern crate std;
-
-extern crate alloc;
-
 // Core interpolation and extrapolation plugins
 pub mod extrapolation;
 pub mod interpolation;
