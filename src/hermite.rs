@@ -432,7 +432,7 @@ pub fn hermite_quat(qa: Quat, qb: Quat, w0: Vec3, w1: Vec3, t: f32, unwrap: bool
         // l dot(n, n) = l = dot(p - a, n)
 
         let extra_angle = w01_direction.dot(average_w_div_3 - w01_div_3);
-        w01_div_3 += (extra_angle / TAU).round() * TAU * w01_direction;
+        w01_div_3 += ops::round(extra_angle / TAU) * TAU * w01_direction;
     }
 
     // Rotate by b1 * dt / 3 at initial velocity, then by b2 * dt / 3 at w01, then by b3 * dt / 3 at final velocity.
