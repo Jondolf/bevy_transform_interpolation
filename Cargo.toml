@@ -14,14 +14,17 @@ categories = ["game-development"]
 [features]
 default = ["std"]
 
+# Enable data serialization/deserialization using `serde`.
+serialize = ["dep:serde", "bevy/serialize"]
+
 # Enable the Rust standard library.
 std = ["bevy/std"]
 
 # Enable `libm` math operations for `no_std` environments and cross-platform determinism.
 libm = ["bevy/libm"]
 
-# Enable data serialization/deserialization using `serde`.
-serialize = ["dep:serde", "bevy/serialize"]
+# Rely on `critical-section` for synchronization primitives.
+critical-section = ["bevy/critical-section"]
 
 [dependencies]
 bevy = { version = "0.16.0-rc.1", default-features = false }
