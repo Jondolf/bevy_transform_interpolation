@@ -47,7 +47,7 @@ fn interpolate_transforms(
 In fact, you could simply plug the above implementation into your own application if you wanted to!
 
 However, it requires you to use `Position` for gameplay logic, and to manage `OldPosition` somewhere.
-This can be annoying, and is incompatibile with third party libraries that expect to be able to modify
+This can be annoying, and is incompatible with third party libraries that expect to be able to modify
 the transform directly.
 
 `bevy_transform_interpolation` aims to be a drop-in solution that allows easy and efficient transform interpolation,
