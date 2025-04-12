@@ -135,6 +135,9 @@ pub mod interpolation;
 // TODO: Catmull-Rom (like Hermite interpolation, but velocity is estimated from four points)
 pub mod hermite;
 
+// Helper commands
+pub mod commands;
+
 /// The prelude.
 ///
 /// This includes the most common types in this crate, re-exported for your convenience.
