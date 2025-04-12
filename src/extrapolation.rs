@@ -227,9 +227,9 @@ use bevy::prelude::*;
 /// and the entity will be teleported without interrupting the extrapolation.
 ///
 /// In other instances, it may be desirable to instead interrupt the extrapolation and teleport the entity
-/// without any easing. This can be done using the [`ResetInterpolation`] command and then setting the [`Transform`].
+/// without any easing. This can be done using the [`ResetEasing`] command and then setting the [`Transform`].
 ///
-/// [`ResetInterpolation`]: crate::commands::ResetInterpolation
+/// [`ResetEasing`]: crate::commands::ResetEasing
 ///
 /// # Alternatives
 ///

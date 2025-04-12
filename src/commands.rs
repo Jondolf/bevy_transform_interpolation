@@ -7,18 +7,18 @@ use bevy::{
 
 use crate::{RotationEasingState, ScaleEasingState, TranslationEasingState};
 
-/// A [`Command`] that resets the interpolation state of an entity.
+/// A [`Command`] that resets the easing states of an entity.
 ///
-/// This disables interpolation for the remainder of the current fixed time step,
+/// This disables easing for the remainder of the current fixed time step,
 /// allowing you to freely set the [`Transform`](bevy::transform::components::Transform)
-/// of the entity without any interpolation being applied.
+/// of the entity without any easing being applied.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct ResetInterpolation(pub Entity);
+pub struct ResetEasing(pub Entity);
 
-impl Command for ResetInterpolation {
+impl Command for ResetEasing {
     fn apply(self, world: &mut World) {
         let Ok(mut entity_mut) = world.get_entity_mut(self.0) else {
             return;
