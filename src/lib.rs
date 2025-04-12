@@ -143,6 +143,7 @@ pub mod commands;
 pub mod prelude {
     #[doc(inline)]
     pub use crate::{
+        commands::ResetEasing,
         extrapolation::*,
         hermite::{
             RotationHermiteEasing, TransformHermiteEasing, TransformHermiteEasingPlugin,

@@ -1,4 +1,4 @@
-//! Helper commands for operations on interpolated entities.
+//! Helper commands for operations on interpolated or extrapolated entities.
 
 use bevy::{
     ecs::{entity::Entity, system::Command, world::World},
