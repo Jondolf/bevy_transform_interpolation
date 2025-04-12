@@ -108,8 +108,7 @@
 //!
 //! - In [`FixedLast`], `start` is set to the current [`Transform`], and `end` is set to the [`Transform`] predicted based on velocity.
 //!
-//! At the start of the [`FixedFirst`] schedule, the states are reset to `None`. If the [`Transform`] is detected to have changed
-//! since the last easing run but *outside* of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
+//! At the start of the [`FixedFirst`] schedule, the states are reset to `None`.
 //!
 //! The actual easing is performed in [`RunFixedMainLoop`], right after [`FixedMain`](bevy::app::FixedMain), before [`Update`].
 //! By default, linear interpolation (`lerp`) is used for translation and scale, and spherical linear interpolation (`slerp`)

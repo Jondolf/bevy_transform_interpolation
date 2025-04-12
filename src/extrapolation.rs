@@ -200,9 +200,6 @@ use bevy::prelude::*;
 /// When extrapolation is enabled for all entities by default, you can still opt out of it for individual entities
 /// by adding the [`NoTransformEasing`] component, or the individual [`NoTranslationEasing`] and [`NoRotationEasing`] components.
 ///
-/// Note that changing [`Transform`] manually in any schedule that *doesn't* use a fixed timestep is also supported,
-/// but it is equivalent to teleporting, and disables extrapolation for the entity for the remainder of that fixed timestep.
-///
 /// [`QueryData`]: bevy::ecs::query::QueryData
 /// [`TransformExtrapolationPlugin::extrapolate_all()`]: TransformExtrapolationPlugin::extrapolate_all
 /// [`extrapolate_translation_all`]: TransformExtrapolationPlugin::extrapolate_translation_all
@@ -210,6 +207,29 @@ use bevy::prelude::*;
 /// [`NoTransformEasing`]: crate::NoTransformEasing
 /// [`NoTranslationEasing`]: crate::NoTranslationEasing
 /// [`NoRotationEasing`]: crate::NoRotationEasing
+///
+/// ## Changing [`Transform`] Outside of Fixed Timesteps
+///
+/// Changing the [`Transform`] of an extrapolated entity in any schedule that *doesn't* use
+/// a fixed timestep is also supported, but comes with some special behavior.
+///
+/// [`Transform`] changes made outside of the fixed time step are applied immediately,
+/// effectively teleporting the entity to the new position. However, the easing is not interrupted,
+/// meaning that the remaining extrapolation will still be applied, but relative to the new transform.
+///
+/// To better visualize this, consider a classic trick in games where an infinite world is simulated
+/// by teleporting the player to the other side of the game area when they reach the edge of the world.
+/// This teleportation is done in the [`Update`] schedule as soon as the [`Transform`] reaches the edge.
+///
+/// To make the effect smooth, we want to set the visual [`Transform`] to the new position immediately,
+/// but to still complete the remainder of the extrapolation to prevent any stuttering.
+/// In `bevy_transform_interpolation`, this works *by default*. Just set the [`Transform`],
+/// and the entity will be teleported without interrupting the extrapolation.
+///
+/// In other instances, it may be desirable to instead interrupt the extrapolation and teleport the entity
+/// without any easing. This can be done using the [`ResetInterpolation`] command and then setting the [`Transform`].
+///
+/// [`ResetInterpolation`]: crate::commands::ResetInterpolation
 ///
 /// # Alternatives
 ///
