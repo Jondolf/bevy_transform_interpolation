@@ -90,9 +90,6 @@ use bevy::prelude::*;
 /// by adding the [`NoTransformEasing`] component, or the individual [`NoTranslationEasing`], [`NoRotationEasing`],
 /// and [`NoScaleEasing`] components.
 ///
-/// Note that changing [`Transform`] manually in any schedule that *doesn't* use a fixed timestep is also supported,
-/// but it is equivalent to teleporting, and disables interpolation for the entity for the remainder of that fixed timestep.
-///
 /// [`interpolate_translation_all`]: TransformInterpolationPlugin::interpolate_translation_all
 /// [`interpolate_rotation_all`]: TransformInterpolationPlugin::interpolate_rotation_all
 /// [`interpolate_scale_all`]: TransformInterpolationPlugin::interpolate_scale_all
