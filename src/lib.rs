@@ -536,9 +536,7 @@ pub fn update_easing_states_on_transform_change(
                         // TODO: Do we need to consider alternative easing modes?
                         let old = start.slerp(end, overstep);
                         let difference = old.inverse() * transform.rotation;
-                        rotation_easing.start = Some(difference * start);
-                        // We need to normalize here to avoid error accumulating over time.
-                        // It seems like it's enough to only normalize the end state however.
+                        rotation_easing.start = Some((difference * start).normalize());
                         rotation_easing.end = Some((difference * end).normalize());
                     }
                 }
