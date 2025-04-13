@@ -90,12 +90,32 @@ use bevy::prelude::*;
 /// by adding the [`NoTransformEasing`] component, or the individual [`NoTranslationEasing`], [`NoRotationEasing`],
 /// and [`NoScaleEasing`] components.
 ///
-/// Note that changing [`Transform`] manually in any schedule that *doesn't* use a fixed timestep is also supported,
-/// but it is equivalent to teleporting, and disables interpolation for the entity for the remainder of that fixed timestep.
-///
 /// [`interpolate_translation_all`]: TransformInterpolationPlugin::interpolate_translation_all
 /// [`interpolate_rotation_all`]: TransformInterpolationPlugin::interpolate_rotation_all
 /// [`interpolate_scale_all`]: TransformInterpolationPlugin::interpolate_scale_all
+///
+/// ## Changing [`Transform`] Outside of Fixed Timesteps
+///
+/// Changing the [`Transform`] of an interpolated entity in any schedule that *doesn't* use
+/// a fixed timestep is also supported, but comes with some special behavior.
+///
+/// [`Transform`] changes made outside of the fixed time step are applied immediately,
+/// effectively teleporting the entity to the new position. However, the easing is not interrupted,
+/// meaning that the remaining interpolation will still be applied, but relative to the new transform.
+///
+/// To better visualize this, consider a classic trick in games where an infinite world is simulated
+/// by teleporting the player to the other side of the game area when they reach the edge of the world.
+/// This teleportation is done in the [`Update`] schedule as soon as the [`Transform`] reaches the edge.
+///
+/// To make the effect smooth, we want to set the visual [`Transform`] to the new position immediately,
+/// but to still complete the remainder of the interpolation to prevent any stuttering.
+/// In `bevy_transform_interpolation`, this works *by default*. Just set the [`Transform`],
+/// and the entity will be teleported without interrupting the interpolation.
+///
+/// In other instances, it may be desirable to instead interrupt the interpolation and teleport the entity
+/// without any easing. This can be done using the [`ResetEasing`] command and then setting the [`Transform`].
+///
+/// [`ResetEasing`]: crate::commands::ResetEasing
 ///
 /// # Alternatives
 ///
