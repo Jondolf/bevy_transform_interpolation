@@ -108,8 +108,7 @@
 //!
 //! - In [`FixedLast`], `start` is set to the current [`Transform`], and `end` is set to the [`Transform`] predicted based on velocity.
 //!
-//! At the start of the [`FixedFirst`] schedule, the states are reset to `None`. If the [`Transform`] is detected to have changed
-//! since the last easing run but *outside* of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
+//! At the start of the [`FixedFirst`] schedule, the states are reset to `None`.
 //!
 //! The actual easing is performed in [`RunFixedMainLoop`], right after [`FixedMain`](bevy::app::FixedMain), before [`Update`].
 //! By default, linear interpolation (`lerp`) is used for translation and scale, and spherical linear interpolation (`slerp`)
@@ -135,12 +134,16 @@ pub mod interpolation;
 // TODO: Catmull-Rom (like Hermite interpolation, but velocity is estimated from four points)
 pub mod hermite;
 
+// Helper commands
+pub mod commands;
+
 /// The prelude.
 ///
 /// This includes the most common types in this crate, re-exported for your convenience.
 pub mod prelude {
     #[doc(inline)]
     pub use crate::{
+        commands::ResetEasing,
         extrapolation::*,
         hermite::{
             RotationHermiteEasing, TransformHermiteEasing, TransformHermiteEasingPlugin,
@@ -224,7 +227,8 @@ impl Plugin for TransformEasingPlugin {
 
         app.add_systems(
             RunFixedMainLoop,
-            reset_easing_states_on_transform_change.before(TransformEasingSet::Ease),
+            update_easing_states_on_transform_change
+                .in_set(RunFixedMainLoopSystem::BeforeFixedMainLoop),
         );
 
         // Perform easing.
@@ -473,10 +477,14 @@ fn update_last_easing_tick(
     *last_easing_tick = LastEasingTick(system_change_tick.this_run());
 }
 
-/// Resets the easing states to `None` when [`Transform`] is modified outside of the fixed timestep schedules
-/// or interpolation logic. This makes it possible to "teleport" entities in schedules like [`Update`].
+/// Updates easing states when [`Transform`] is modified outside of the fixed timestep schedules
+/// or interpolation logic.
+///
+/// The `start` and `end` states are updated such that the current interpolated transform
+/// matches the new transform. This makes it possible to "teleport" entities in schedules
+/// such as [`Update`] without interrupting the easing.
 #[allow(clippy::type_complexity, private_interfaces)]
-pub fn reset_easing_states_on_transform_change(
+pub fn update_easing_states_on_transform_change(
     mut query: Query<
         (
             Ref<Transform>,
@@ -495,8 +503,10 @@ pub fn reset_easing_states_on_transform_change(
     >,
     last_easing_tick: Res<LastEasingTick>,
     system_change_tick: SystemChangeTick,
+    time: Res<Time<Fixed>>,
 ) {
     let this_run = system_change_tick.this_run();
+    let overstep = time.overstep_fraction();
 
     query.par_iter_mut().for_each(
         |(transform, translation_easing, rotation_easing, scale_easing)| {
@@ -507,28 +517,37 @@ pub fn reset_easing_states_on_transform_change(
                 return;
             }
 
+            // Transform the `start` and `end` states of each transform property
+            // such that the current eased transform matches `transform`.
             if let Some(mut translation_easing) = translation_easing {
                 if let (Some(start), Some(end)) = (translation_easing.start, translation_easing.end)
                 {
                     if transform.translation != start && transform.translation != end {
-                        translation_easing.start = None;
-                        translation_easing.end = None;
+                        let old = start.lerp(end, overstep);
+                        let difference = transform.translation - old;
+                        translation_easing.start = Some(start + difference);
+                        translation_easing.end = Some(end + difference);
                     }
                 }
             }
             if let Some(mut rotation_easing) = rotation_easing {
                 if let (Some(start), Some(end)) = (rotation_easing.start, rotation_easing.end) {
                     if transform.rotation != start && transform.rotation != end {
-                        rotation_easing.start = None;
-                        rotation_easing.end = None;
+                        // TODO: Do we need to consider alternative easing modes?
+                        let old = start.slerp(end, overstep);
+                        let difference = old.inverse() * transform.rotation;
+                        rotation_easing.start = Some((difference * start).normalize());
+                        rotation_easing.end = Some((difference * end).normalize());
                     }
                 }
             }
             if let Some(mut scale_easing) = scale_easing {
                 if let (Some(start), Some(end)) = (scale_easing.start, scale_easing.end) {
                     if transform.scale != start && transform.scale != end {
-                        scale_easing.start = None;
-                        scale_easing.end = None;
+                        let old = start.lerp(end, overstep);
+                        let difference = transform.scale - old;
+                        scale_easing.start = Some(start + difference);
+                        scale_easing.end = Some(end + difference);
                     }
                 }
             }
