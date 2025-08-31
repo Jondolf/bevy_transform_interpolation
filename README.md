@@ -39,7 +39,7 @@ fn interpolate_transforms(
 
     for (mut transform, position, old_position) in &mut query {
         // Linearly interpolate the translation from the old position to the current one.
-        transform.translation = old_position.lerp(position.0, overstep_fraction);
+        transform.translation = old_position.lerp(position.0, overstep);
     }
 }
 ```
