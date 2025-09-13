@@ -6,7 +6,8 @@
 #![allow(clippy::type_complexity)]
 
 use crate::{
-    prelude::*, RotationEasingState, ScaleEasingState, TransformEasingSystems, TranslationEasingState,
+    prelude::*, RotationEasingState, ScaleEasingState, TransformEasingSystems,
+    TranslationEasingState,
 };
 use bevy::prelude::*;
 
