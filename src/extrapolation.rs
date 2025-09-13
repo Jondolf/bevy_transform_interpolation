@@ -416,7 +416,7 @@ fn update_translation_extrapolation_states<V: VelocitySource>(
         translation_easing.start = Some(transform.translation);
 
         // Extrapolate the next state based on the current state and velocities.
-        let lin_vel = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+        let lin_vel = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
         translation_easing.end = Some(transform.translation + lin_vel * delta_secs);
     }
 }
@@ -435,7 +435,7 @@ fn update_rotation_extrapolation_states<V: VelocitySource>(
         rotation_easing.start = Some(transform.rotation);
 
         // Extrapolate the next state based on the current state and velocities.
-        let ang_vel = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+        let ang_vel = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
         let scaled_axis = ang_vel * delta_secs;
         rotation_easing.end = Some(transform.rotation * Quat::from_scaled_axis(scaled_axis));
     }

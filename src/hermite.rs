@@ -308,8 +308,9 @@ fn ease_translation_hermite<V: VelocitySource>(
         .par_iter_mut()
         .for_each(|(mut transform, interpolation, start_vel, end_vel)| {
             if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
-                let vel0 = <V::Item<'static> as VelocitySourceItem<V>>::previous(start_vel);
-                let vel1 = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+                let vel0 =
+                    <V::Item<'static, 'static> as VelocitySourceItem<V>>::previous(start_vel);
+                let vel1 = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
                 transform.translation =
                     hermite_vec3(start, end, delta_secs * vel0, delta_secs * vel1, overstep);
             }
@@ -336,8 +337,9 @@ fn ease_rotation_hermite<V: VelocitySource>(
         .par_iter_mut()
         .for_each(|(mut transform, interpolation, start_vel, end_vel)| {
             if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
-                let vel0 = <V::Item<'static> as VelocitySourceItem<V>>::previous(start_vel);
-                let vel1 = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+                let vel0 =
+                    <V::Item<'static, 'static> as VelocitySourceItem<V>>::previous(start_vel);
+                let vel1 = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
                 transform.rotation = hermite_quat(
                     start,
                     end,

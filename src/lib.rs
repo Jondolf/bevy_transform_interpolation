@@ -207,7 +207,7 @@ impl Plugin for TransformEasingPlugin {
                 TransformEasingSet::UpdateEasingTick,
             )
                 .chain()
-                .in_set(RunFixedMainLoopSystem::AfterFixedMainLoop),
+                .in_set(RunFixedMainLoopSystems::AfterFixedMainLoop),
         );
 
         // Reset easing states.
@@ -386,7 +386,7 @@ where
     fn current(end: &V::Current) -> Vec3;
 }
 
-impl<V: VelocitySource> VelocitySourceItem<V> for V::Item<'_> {
+impl<V: VelocitySource> VelocitySourceItem<V> for V::Item<'_, '_> {
     fn previous(start: &V::Previous) -> Vec3 {
         V::previous(start)
     }
