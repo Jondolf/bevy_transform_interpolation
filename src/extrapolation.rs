@@ -7,7 +7,7 @@ use core::marker::PhantomData;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, RotationEasingState, TransformEasingPlugin,
-    TransformEasingSet, TranslationEasingState, VelocitySource, VelocitySourceItem,
+    TransformEasingSystems, TranslationEasingState, VelocitySource, VelocitySourceItem,
 };
 use bevy::prelude::*;
 
@@ -298,7 +298,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
                 reset_translation_extrapolation,
                 reset_rotation_extrapolation,
             )
-                .before(TransformEasingSet::Reset),
+                .before(TransformEasingSystems::Reset),
         );
 
         // Update the start and end state of the extrapolation at the end of the fixed timestep.
@@ -308,7 +308,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
                 update_translation_extrapolation_states::<LinVel>,
                 update_rotation_extrapolation_states::<AngVel>,
             )
-                .in_set(TransformEasingSet::UpdateEnd),
+                .in_set(TransformEasingSystems::UpdateEnd),
         );
 
         // Insert extrapolation components automatically for all entities with a `Transform`
@@ -416,7 +416,7 @@ fn update_translation_extrapolation_states<V: VelocitySource>(
         translation_easing.start = Some(transform.translation);
 
         // Extrapolate the next state based on the current state and velocities.
-        let lin_vel = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+        let lin_vel = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
         translation_easing.end = Some(transform.translation + lin_vel * delta_secs);
     }
 }
@@ -435,7 +435,7 @@ fn update_rotation_extrapolation_states<V: VelocitySource>(
         rotation_easing.start = Some(transform.rotation);
 
         // Extrapolate the next state based on the current state and velocities.
-        let ang_vel = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+        let ang_vel = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
         let scaled_axis = ang_vel * delta_secs;
         rotation_easing.end = Some(transform.rotation * Quat::from_scaled_axis(scaled_axis));
     }

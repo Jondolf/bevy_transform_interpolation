@@ -26,7 +26,8 @@ jobs:
       matrix:
         target:
           - "x86_64-unknown-none"
-          - "wasm32v1-none"
+          # TODO: Re-enable this when it is supported again.
+          # - "wasm32v1-none"
           - "thumbv6m-none-eabi"
     steps:
       - uses: actions/checkout@v4

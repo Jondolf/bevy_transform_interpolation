@@ -7,7 +7,7 @@ use ops::FloatPow;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, NonlinearRotationEasing, NonlinearTranslationEasing,
-    RotationEasingState, TransformEasingSet, TranslationEasingState, VelocitySource,
+    RotationEasingState, TransformEasingSystems, TranslationEasingState, VelocitySource,
     VelocitySourceItem,
 };
 
@@ -240,7 +240,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
                 ease_translation_hermite::<LinVel>,
                 ease_rotation_hermite::<AngVel>,
             )
-                .in_set(TransformEasingSet::Ease),
+                .in_set(TransformEasingSystems::Ease),
         );
     }
 }
@@ -308,8 +308,9 @@ fn ease_translation_hermite<V: VelocitySource>(
         .par_iter_mut()
         .for_each(|(mut transform, interpolation, start_vel, end_vel)| {
             if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
-                let vel0 = <V::Item<'static> as VelocitySourceItem<V>>::previous(start_vel);
-                let vel1 = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+                let vel0 =
+                    <V::Item<'static, 'static> as VelocitySourceItem<V>>::previous(start_vel);
+                let vel1 = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
                 transform.translation =
                     hermite_vec3(start, end, delta_secs * vel0, delta_secs * vel1, overstep);
             }
@@ -336,8 +337,9 @@ fn ease_rotation_hermite<V: VelocitySource>(
         .par_iter_mut()
         .for_each(|(mut transform, interpolation, start_vel, end_vel)| {
             if let (Some(start), Some(end)) = (interpolation.start, interpolation.end) {
-                let vel0 = <V::Item<'static> as VelocitySourceItem<V>>::previous(start_vel);
-                let vel1 = <V::Item<'static> as VelocitySourceItem<V>>::current(end_vel);
+                let vel0 =
+                    <V::Item<'static, 'static> as VelocitySourceItem<V>>::previous(start_vel);
+                let vel1 = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
                 transform.rotation = hermite_quat(
                     start,
                     end,
