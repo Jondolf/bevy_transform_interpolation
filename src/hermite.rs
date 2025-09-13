@@ -7,7 +7,7 @@ use ops::FloatPow;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, NonlinearRotationEasing, NonlinearTranslationEasing,
-    RotationEasingState, TransformEasingSet, TranslationEasingState, VelocitySource,
+    RotationEasingState, TransformEasingSystems, TranslationEasingState, VelocitySource,
     VelocitySourceItem,
 };
 
@@ -240,7 +240,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
                 ease_translation_hermite::<LinVel>,
                 ease_rotation_hermite::<AngVel>,
             )
-                .in_set(TransformEasingSet::Ease),
+                .in_set(TransformEasingSystems::Ease),
         );
     }
 }

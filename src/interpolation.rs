@@ -6,7 +6,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::{
-    prelude::*, RotationEasingState, ScaleEasingState, TransformEasingSet, TranslationEasingState,
+    prelude::*, RotationEasingState, ScaleEasingState, TransformEasingSystems, TranslationEasingState,
 };
 use bevy::prelude::*;
 
@@ -162,7 +162,7 @@ impl Plugin for TransformInterpolationPlugin {
                 complete_scale_easing,
             )
                 .chain()
-                .before(TransformEasingSet::Reset),
+                .before(TransformEasingSystems::Reset),
         );
 
         // Update the start state of the interpolation at the start of the fixed timestep.
@@ -174,7 +174,7 @@ impl Plugin for TransformInterpolationPlugin {
                 update_scale_interpolation_start,
             )
                 .chain()
-                .in_set(TransformEasingSet::UpdateStart),
+                .in_set(TransformEasingSystems::UpdateStart),
         );
 
         // Update the end state of the interpolation at the end of the fixed timestep.
@@ -186,7 +186,7 @@ impl Plugin for TransformInterpolationPlugin {
                 update_scale_interpolation_end,
             )
                 .chain()
-                .in_set(TransformEasingSet::UpdateEnd),
+                .in_set(TransformEasingSystems::UpdateEnd),
         );
 
         // Insert interpolation components automatically for all entities with a `Transform`

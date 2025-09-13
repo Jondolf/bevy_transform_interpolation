@@ -7,7 +7,7 @@ use core::marker::PhantomData;
 
 use crate::{
     NoRotationEasing, NoTranslationEasing, RotationEasingState, TransformEasingPlugin,
-    TransformEasingSet, TranslationEasingState, VelocitySource, VelocitySourceItem,
+    TransformEasingSystems, TranslationEasingState, VelocitySource, VelocitySourceItem,
 };
 use bevy::prelude::*;
 
@@ -298,7 +298,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
                 reset_translation_extrapolation,
                 reset_rotation_extrapolation,
             )
-                .before(TransformEasingSet::Reset),
+                .before(TransformEasingSystems::Reset),
         );
 
         // Update the start and end state of the extrapolation at the end of the fixed timestep.
@@ -308,7 +308,7 @@ impl<LinVel: VelocitySource, AngVel: VelocitySource> Plugin
                 update_translation_extrapolation_states::<LinVel>,
                 update_rotation_extrapolation_states::<AngVel>,
             )
-                .in_set(TransformEasingSet::UpdateEnd),
+                .in_set(TransformEasingSystems::UpdateEnd),
         );
 
         // Insert extrapolation components automatically for all entities with a `Transform`

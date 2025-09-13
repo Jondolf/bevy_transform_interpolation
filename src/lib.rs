@@ -193,18 +193,22 @@ impl Plugin for TransformEasingPlugin {
         // Reset easing states and update start values at the start of the fixed timestep.
         app.configure_sets(
             FixedFirst,
-            (TransformEasingSet::Reset, TransformEasingSet::UpdateStart).chain(),
+            (
+                TransformEasingSystems::Reset,
+                TransformEasingSystems::UpdateStart,
+            )
+                .chain(),
         );
 
         // Update end values at the end of the fixed timestep.
-        app.configure_sets(FixedLast, TransformEasingSet::UpdateEnd);
+        app.configure_sets(FixedLast, TransformEasingSystems::UpdateEnd);
 
         // Perform transform easing right after the fixed timestep, before `Update`.
         app.configure_sets(
             RunFixedMainLoop,
             (
-                TransformEasingSet::Ease,
-                TransformEasingSet::UpdateEasingTick,
+                TransformEasingSystems::Ease,
+                TransformEasingSystems::UpdateEasingTick,
             )
                 .chain()
                 .in_set(RunFixedMainLoopSystems::AfterFixedMainLoop),
@@ -219,32 +223,32 @@ impl Plugin for TransformEasingPlugin {
                 reset_scale_easing,
             )
                 .chain()
-                .in_set(TransformEasingSet::Reset),
+                .in_set(TransformEasingSystems::Reset),
         );
 
         app.add_systems(
             RunFixedMainLoop,
-            reset_easing_states_on_transform_change.before(TransformEasingSet::Ease),
+            reset_easing_states_on_transform_change.before(TransformEasingSystems::Ease),
         );
 
         // Perform easing.
         app.add_systems(
             RunFixedMainLoop,
             (ease_translation_lerp, ease_rotation_slerp, ease_scale_lerp)
-                .in_set(TransformEasingSet::Ease),
+                .in_set(TransformEasingSystems::Ease),
         );
 
         // Update the last easing tick.
         app.add_systems(
             RunFixedMainLoop,
-            update_last_easing_tick.in_set(TransformEasingSet::UpdateEasingTick),
+            update_last_easing_tick.in_set(TransformEasingSystems::UpdateEasingTick),
         );
     }
 }
 
-/// A system set for easing transform.
+/// System sets for easing transform.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum TransformEasingSet {
+pub enum TransformEasingSystems {
     /// Resets easing states to `None` at the start of the fixed timestep.
     Reset,
     /// Updates the `start` values for easing at the start of the fixed timestep.
@@ -257,6 +261,10 @@ pub enum TransformEasingSet {
     /// Updates [`LastEasingTick`], the last tick when easing was performed.
     UpdateEasingTick,
 }
+
+/// A deprecated alias for [`TransformEasingSystems`].
+#[deprecated(since = "0.3.0", note = "Renamed to `TransformEasingSystems`")]
+pub type TransformEasingSet = TransformEasingSystems;
 
 /// A resource that stores the last tick when easing was performed.
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut)]
