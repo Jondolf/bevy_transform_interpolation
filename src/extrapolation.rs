@@ -437,6 +437,6 @@ fn update_rotation_extrapolation_states<V: VelocitySource>(
         // Extrapolate the next state based on the current state and velocities.
         let ang_vel = <V::Item<'static, 'static> as VelocitySourceItem<V>>::current(end_vel);
         let scaled_axis = ang_vel * delta_secs;
-        rotation_easing.end = Some(transform.rotation * Quat::from_scaled_axis(scaled_axis));
+        rotation_easing.end = Some(Quat::from_scaled_axis(scaled_axis) * transform.rotation);
     }
 }
