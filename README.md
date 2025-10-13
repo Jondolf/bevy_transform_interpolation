@@ -156,7 +156,7 @@ and `NonlinearRotationEasing` marker components. Custom easing solutions can be 
 
 | `bevy`  | `bevy_transform_interpolation` |
 | ------- | ------------------------------ |
-| 0.17    | `main`                         |
+| 0.17    | 0.3                            |
 | 0.16    | 0.2                            |
 | 0.15    | 0.1                            |
 
