@@ -161,7 +161,7 @@ use extrapolation::*;
 use interpolation::*;
 
 use bevy::{
-    ecs::{component::Tick, query::QueryData, system::SystemChangeTick},
+    ecs::{change_detection::Tick, query::QueryData, system::SystemChangeTick},
     prelude::*,
 };
 
