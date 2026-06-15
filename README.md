@@ -93,7 +93,7 @@ fn setup(mut commands: Commands) {
 Now, any changes made to the `Transform` of the entity in `FixedPreUpdate`, `FixedUpdate`, or `FixedPostUpdate`
 will automatically be interpolated in between fixed timesteps.
 
-If you want *all* entities with a `Transform` to be interpolated by default, you can use
+If you want _all_ entities with a `Transform` to be interpolated by default, you can use
 `TransformInterpolationPlugin::interpolate_all()`:
 
 ```rust
@@ -141,7 +141,7 @@ If extrapolation is used:
 - In `FixedLast`, `start` is set to the current `Transform`, and `end` is set to the `Transform` predicted based on velocity.
 
 At the start of the `FixedFirst` schedule, the states are reset to `None`. If the `Transform` is detected to have changed
-since the last easing run but *outside* of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
+since the last easing run but _outside_ of the fixed timestep schedules, the easing is also reset to `None` to prevent overwriting the change.
 
 The actual easing is performed in `RunFixedMainLoop`, right after `FixedMain`, before `Update`.
 By default, linear interpolation (`lerp`) is used for translation and scale, and spherical linear interpolation (`slerp`)
@@ -156,6 +156,7 @@ and `NonlinearRotationEasing` marker components. Custom easing solutions can be 
 
 | `bevy`  | `bevy_transform_interpolation` |
 | ------- | ------------------------------ |
+| 0.19-rc | main                           |
 | 0.18    | 0.4                            |
 | 0.17    | 0.3                            |
 | 0.16    | 0.2                            |
