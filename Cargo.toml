@@ -27,13 +27,16 @@ libm = ["bevy/libm"]
 critical-section = ["bevy/critical-section"]
 
 [dependencies]
-bevy = { version = "0.18.0", default-features = false }
+bevy = { version = "0.19.0-rc", default-features = false }
 
 # Serialization
 serde = { version = "1.0", default-features = false, optional = true }
 
 [dev-dependencies]
-bevy = { version = "0.18.0", default-features = false, features = ["2d", "ui"] }
+bevy = { version = "0.19.0-rc", default-features = false, features = [
+    "2d",
+    "ui",
+] }
 
 [lints.clippy]
 std_instead_of_core = "warn"
