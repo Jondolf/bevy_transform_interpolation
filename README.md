@@ -154,13 +154,13 @@ and `NonlinearRotationEasing` marker components. Custom easing solutions can be 
 
 ## Supported Bevy Versions
 
-| `bevy`  | `bevy_transform_interpolation` |
-| ------- | ------------------------------ |
-| 0.19-rc | main                           |
-| 0.18    | 0.4                            |
-| 0.17    | 0.3                            |
-| 0.16    | 0.2                            |
-| 0.15    | 0.1                            |
+| `bevy` | `bevy_transform_interpolation` |
+| ------ | ------------------------------ |
+| 0.19   | main                           |
+| 0.18   | 0.4                            |
+| 0.17   | 0.3                            |
+| 0.16   | 0.2                            |
+| 0.15   | 0.1                            |
 
 ## License
 
