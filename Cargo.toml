@@ -1,6 +1,6 @@
 [package]
 name = "bevy_transform_interpolation"
-version = "0.5.0-dev"
+version = "0.5.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
